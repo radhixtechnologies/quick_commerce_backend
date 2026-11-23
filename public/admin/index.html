@@ -318,9 +318,55 @@
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>Product Name</label>
-          <input type="text" class="form-control" id="newProductName" placeholder="e.g. Farm Fresh Broccoli 500g" />
+          <label>Product / Menu Item Name *</label>
+          <input type="text" class="form-control" id="newProductName" placeholder="e.g. Creamy White Sauce Pasta, Hyderabadi Biryani" />
         </div>
+
+        <!-- GEMINI AI MEDIA STUDIO SECTION -->
+        <div style="background:#FFFBEB; border:1px solid #FCD34D; border-radius:10px; padding:12px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-weight:700; font-size:12.5px; color:#92400E; display:flex; align-items:center; gap:6px;">
+              <span>✨</span> Gemini AI Media Studio
+            </span>
+            <span class="status-badge" style="background:#FEF3C7; color:#B45309; font-size:10px;">4K PHOTOGRAPHY & VIDEO</span>
+          </div>
+
+          <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px;">
+            <div id="newProductImagePreviewWrap" style="width:75px; height:75px; border-radius:8px; border:1px solid #CBD5E1; background:white; overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+              <img id="newProductImagePreview" src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80" style="width:100%; height:100%; object-fit:cover;" />
+            </div>
+            <div style="flex:1;">
+              <input type="hidden" id="newProductImageUrl" value="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80" />
+              <input type="hidden" id="newProductVideoUrl" value="" />
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button type="button" class="btn-primary" style="background:var(--royal-gold); font-size:11px; padding:5px 10px;" onclick="adminGenerateAiImage()">
+                  ✨ Generate Image with AI
+                </button>
+                <label class="btn-outline" style="font-size:11px; padding:5px 10px; cursor:pointer; margin:0; display:inline-flex; align-items:center;">
+                  📤 Upload File
+                  <input type="file" id="adminProductImageFile" accept="image/*" style="display:none;" onchange="adminUploadProductFile(event)" />
+                </label>
+                <button type="button" class="btn-outline" style="font-size:11px; padding:5px 10px; color:#0284C7; border-color:#BAE6FD;" onclick="adminGenerateAiVideo()">
+                  🎬 AI Promo Video
+                </button>
+              </div>
+              <span id="aiMediaStatusText" style="display:block; font-size:10.5px; color:#B45309; margin-top:5px;">
+                Type "Pasta" or dish name above and tap "Generate Image with AI".
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="margin:0;">Product Description</label>
+            <button type="button" style="background:none; border:none; color:#D97706; font-size:11px; font-weight:700; cursor:pointer;" onclick="adminGenerateAiDescription()">
+              ✨ AI Auto-Write
+            </button>
+          </div>
+          <textarea class="form-control" id="newProductDesc" rows="2" placeholder="Appetizing description crafted for menu display..."></textarea>
+        </div>
+
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
           <div class="form-group">
             <label>Vendor</label>
@@ -341,12 +387,12 @@
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
           <div class="form-group">
-            <label>Regular Price (₹)</label>
-            <input type="number" class="form-control" id="newProductPrice" placeholder="50" />
+            <label>Regular Price (₹) *</label>
+            <input type="number" class="form-control" id="newProductPrice" placeholder="180" />
           </div>
           <div class="form-group">
             <label>Discount Price (₹)</label>
-            <input type="number" class="form-control" id="newProductDiscountPrice" placeholder="42" />
+            <input type="number" class="form-control" id="newProductDiscountPrice" placeholder="150" />
           </div>
         </div>
       </div>
@@ -395,7 +441,7 @@
   </div>
 
   <!-- MAIN APP SCRIPT WITH CACHE-BUSTER -->
-  <script src="js/admin-app.js?v=2.3"></script>
+  <script src="js/admin-app.js?v=2.4"></script>
 
 </body>
 </html>

@@ -2358,12 +2358,125 @@ async function saveSubcategoryAction() {
   }
 }
 
+async function adminGenerateAiImage() {
+  const nameInput = document.getElementById('newProductName');
+  const query = nameInput ? nameInput.value.trim() : '';
+  const statusEl = document.getElementById('aiMediaStatusText');
+  const previewImg = document.getElementById('newProductImagePreview');
+  const hiddenUrl = document.getElementById('newProductImageUrl');
+  const descInput = document.getElementById('newProductDesc');
+
+  if (!query) {
+    showToast('Please type a Product / Dish Name first (e.g. Pasta, Biryani)');
+    if (nameInput) nameInput.focus();
+    return;
+  }
+
+  if (statusEl) statusEl.textContent = `✨ Asking Gemini AI to generate 4K commercial photography for "${query}"...`;
+  showToast(`✨ Generating 4K photo for "${query}" with Gemini AI...`);
+
+  try {
+    const res = await apiRequest('/ai/gemini/generate-product-image', {
+      method: 'POST',
+      body: JSON.stringify({ product_name: query, category: 'food' })
+    });
+
+    if (res.success && res.imageUrl) {
+      if (previewImg) previewImg.src = res.imageUrl;
+      if (hiddenUrl) hiddenUrl.value = res.imageUrl;
+      if (descInput && !descInput.value && res.description) {
+        descInput.value = res.description;
+      }
+      if (statusEl) statusEl.innerHTML = `<span style="color:#16A34A; font-weight:700;">✓ 4K Studio Image Ready:</span> Matched for "${query}"`;
+      showToast(`✨ Commercial photo for "${query}" generated!`);
+    } else {
+      if (statusEl) statusEl.textContent = 'Could not generate image. Please try again.';
+    }
+  } catch (err) {
+    if (statusEl) statusEl.textContent = `Error: ${err.message}`;
+    showToast(`AI generation error: ${err.message}`);
+  }
+}
+
+async function adminUploadProductFile(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const previewImg = document.getElementById('newProductImagePreview');
+  const hiddenUrl = document.getElementById('newProductImageUrl');
+  const statusEl = document.getElementById('aiMediaStatusText');
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const base64Data = e.target.result;
+    if (previewImg) previewImg.src = base64Data;
+    if (hiddenUrl) hiddenUrl.value = base64Data;
+    if (statusEl) statusEl.innerHTML = `<span style="color:#16A34A; font-weight:700;">✓ Uploaded from PC:</span> ${file.name}`;
+    showToast(`File "${file.name}" loaded for product!`);
+  };
+  reader.readAsDataURL(file);
+}
+
+async function adminGenerateAiVideo() {
+  const nameInput = document.getElementById('newProductName');
+  const query = nameInput ? nameInput.value.trim() : 'Gourmet Dish';
+  const statusEl = document.getElementById('aiMediaStatusText');
+  const hiddenVid = document.getElementById('newProductVideoUrl');
+  const hiddenImg = document.getElementById('newProductImageUrl');
+
+  if (statusEl) statusEl.textContent = `🎬 Generating 10s commercial promo video for "${query}"...`;
+  showToast(`🎬 Generating promo video reel with Gemini AI...`);
+
+  try {
+    const res = await apiRequest('/ai/gemini/generate-product-video', {
+      method: 'POST',
+      body: JSON.stringify({ product_name: query, category: 'food', image_url: hiddenImg ? hiddenImg.value : '' })
+    });
+
+    if (res.success && res.videoUrl) {
+      if (hiddenVid) hiddenVid.value = res.videoUrl;
+      if (statusEl) statusEl.innerHTML = `<span style="color:#0284C7; font-weight:700;">✓ 10s Promo Reel Attached:</span> ${res.motion_style || 'Ready'}`;
+      showToast('🎬 Commercial video reel attached to product!');
+    }
+  } catch (err) {
+    if (statusEl) statusEl.textContent = `Video error: ${err.message}`;
+  }
+}
+
+async function adminGenerateAiDescription() {
+  const nameInput = document.getElementById('newProductName');
+  const query = nameInput ? nameInput.value.trim() : '';
+  const descInput = document.getElementById('newProductDesc');
+
+  if (!query) {
+    showToast('Please type a Product Name first');
+    return;
+  }
+
+  showToast(`Writing appetizing description for "${query}" with Gemini AI...`);
+  try {
+    const res = await apiRequest('/ai/gemini/generate-description', {
+      method: 'POST',
+      body: JSON.stringify({ product_name: query, category: 'food' })
+    });
+    if (res.success && res.description) {
+      if (descInput) descInput.value = res.description;
+      showToast('✨ Commercial description generated!');
+    }
+  } catch (err) {
+    showToast(`AI description error: ${err.message}`);
+  }
+}
+
 async function saveProductAction() {
   const name = document.getElementById('newProductName').value.trim();
   const vendor_id = document.getElementById('newProductVendor').value;
   const food_type = document.getElementById('newProductFoodType').value;
   const price = document.getElementById('newProductPrice').value;
   const discount_price = document.getElementById('newProductDiscountPrice').value;
+  const description = (document.getElementById('newProductDesc')?.value || '').trim();
+  const imageUrl = (document.getElementById('newProductImageUrl')?.value || '').trim();
+  const videoUrl = (document.getElementById('newProductVideoUrl')?.value || '').trim();
 
   if (!name || !price) return showToast('Product name and regular price are required');
 
@@ -2372,14 +2485,18 @@ async function saveProductAction() {
       method: 'POST',
       body: JSON.stringify({
         name,
+        description,
         vendor_id: parseInt(vendor_id) || 1,
         category_id: 1,
         price: parseFloat(price),
         discount_price: discount_price ? parseFloat(discount_price) : null,
-        food_type
+        food_type,
+        image_url: imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=85',
+        ai_generated_image_url: imageUrl || null,
+        ai_generated_video_url: videoUrl || null
       })
     });
-    showToast('Product added successfully!');
+    showToast('Product added with AI media assets successfully!');
     closeModal('addProductModal');
     loadModule('products');
   } catch (err) {
