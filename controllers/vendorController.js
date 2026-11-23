@@ -18,7 +18,7 @@ function processDocumentsPayload(docs) {
   for (const [key, val] of Object.entries(processed)) {
     if (typeof val === 'string' && (val.startsWith('data:image') || val.startsWith('data:application/pdf'))) {
       try {
-        const matches = val.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        const matches = val.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/s);
         let ext = '.jpg';
         if (matches && matches[1]) {
           if (matches[1].includes('png')) ext = '.png';

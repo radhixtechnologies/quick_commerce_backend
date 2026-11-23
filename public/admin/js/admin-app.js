@@ -781,42 +781,62 @@ function inspectVendorKyc(vendorId) {
   const badgeEl = document.getElementById('kycModalCategoryBadge');
   const bodyEl = document.getElementById('kycModalBody');
 
+  const cat = (vendor.vendor_category || vendor.business_type || 'food').toLowerCase();
+
   if (nameEl) nameEl.textContent = `${vendor.business_name || 'Vendor Profile'}`;
-  if (badgeEl) badgeEl.innerHTML = `Category: <b>${(vendor.vendor_category || vendor.business_type || 'FOOD').toUpperCase()}</b> &bull; Status: <span class="status-badge badge-${vendor.approval_status || 'pending'}">${(vendor.approval_status || 'pending').toUpperCase()}</span>`;
+  if (badgeEl) badgeEl.innerHTML = `Category: <b>${cat.toUpperCase()}</b> &bull; Status: <span class="status-badge badge-${vendor.approval_status || 'pending'}">${(vendor.approval_status || 'pending').toUpperCase()}</span>`;
 
   // Parse documents and bank details if stringified
-  let docs = vendor.documents_json || {};
+  let docs = vendor.documents_json || vendor.documents || {};
   if (typeof docs === 'string') {
     try { docs = JSON.parse(docs); } catch (e) { docs = {}; }
   }
 
-  let bank = vendor.bank_details_json || {};
+  let bank = vendor.bank_details_json || vendor.bank_details || {};
   if (typeof bank === 'string') {
     try { bank = JSON.parse(bank); } catch (e) { bank = {}; }
   }
 
-  const verif = vendor.document_verification_json || {};
+  const verif = vendor.document_verification_json || vendor.document_verification || {};
 
-  // Standard fallback keys based on category if empty
-  const docKeys = Object.keys(docs);
-  if (docKeys.length === 0) {
-    if (vendor.vendor_category === 'service_based' || vendor.business_type === 'service_based') {
-      docs['aadhaar_card'] = 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=600&q=80';
-      docs['police_verification'] = 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80';
-      docs['skill_certificate'] = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80';
-    } else {
-      docs['fssai_license'] = 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80';
-      docs['gst_certificate'] = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80';
-      docs['trade_license'] = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80';
-    }
-  }
+  // Standard category required document definitions
+  const categoryKycList = {
+    food: [
+      { key: 'fssai_license', title: 'FSSAI Food License', desc: 'Mandatory 14-digit food safety certificate' },
+      { key: 'gst_certificate', title: 'GST Registration Certificate', desc: 'GSTIN registration document' },
+      { key: 'trade_license', title: 'Shop / Trade License', desc: 'Local municipal trade license or gumasta' }
+    ],
+    grocery: [
+      { key: 'fssai_retail', title: 'FSSAI Retail Registration', desc: 'Basic FSSAI registration for packed/fresh grocery' },
+      { key: 'gst_udyam', title: 'GST or Udyam MSME Certificate', desc: 'Valid business registration proof' },
+      { key: 'trade_license', title: 'Shop & Establishment License', desc: 'Local municipal trade license' }
+    ],
+    ecommerce: [
+      { key: 'gstin_certificate', title: 'GSTIN Certificate', desc: 'Valid GST certificate for online selling' },
+      { key: 'pan_card', title: 'Business / Proprietor PAN Card', desc: 'Permanent Account Number verification' },
+      { key: 'cancelled_cheque', title: 'Cancelled Cheque / Bank Passbook', desc: 'Bank account verification for settlements' }
+    ],
+    service_based: [
+      { key: 'aadhaar_card', title: 'Government Photo ID (Aadhaar / Voter)', desc: 'Identity verification of primary service professional' },
+      { key: 'police_verification', title: 'Police Clearance / Character Certificate', desc: 'Mandatory safety verification for home visit services' },
+      { key: 'skill_certificate', title: 'Trade Certificate / Experience Proof', desc: 'Electrician/Plumber/AC Repair or Salon training proof' }
+    ],
+    services: [
+      { key: 'aadhaar_card', title: 'Government Photo ID (Aadhaar / Voter)', desc: 'Identity verification of primary service professional' },
+      { key: 'police_verification', title: 'Police Clearance / Character Certificate', desc: 'Mandatory safety verification for home visit services' },
+      { key: 'skill_certificate', title: 'Trade Certificate / Experience Proof', desc: 'Electrician/Plumber/AC Repair or Salon training proof' }
+    ]
+  };
+
+  const expectedDocs = categoryKycList[cat] || categoryKycList.food;
+  const backendBase = (window.location.origin && !window.location.origin.includes('file:')) ? window.location.origin : 'https://quick-commerce-backend-a3f7.onrender.com';
 
   bodyEl.innerHTML = `
-    <!-- 1. VENDOR BUSINESS DETAILS CARD -->
+    <!-- 1. COMPLETE VENDOR BUSINESS DETAILS CARD -->
     <div style="background: white; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px 18px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #F1F5F9;">
         <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 8px;">
-          <span>🏪</span> Business & Store Profile
+          <span>🏪</span> Complete Business & Store Profile
         </h4>
         <span class="status-badge ${vendor.is_open ? 'badge-active' : 'badge-cancelled'}" style="font-size: 10.5px;">
           ${vendor.is_open ? '● STORE OPEN' : '○ STORE CLOSED'}
@@ -825,86 +845,118 @@ function inspectVendorKyc(vendorId) {
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; font-size: 13px;">
         <div>
-          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">BUSINESS NAME</span>
-          <b style="color:var(--text-dark);">${vendor.business_name || 'N/A'}</b>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">REGISTERED BUSINESS NAME</span>
+          <b style="color:var(--text-dark); font-size:14px;">${vendor.business_name || 'N/A'}</b>
+          ${vendor.legal_name && vendor.legal_name !== vendor.business_name ? `<span style="display:block; font-size:11px; color:var(--text-muted);">Legal: ${vendor.legal_name}</span>` : ''}
         </div>
         <div>
           <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">OWNER / CONTACT PERSON</span>
           <b style="color:var(--text-dark);">${vendor.owner_name || vendor.contact_person || 'N/A'}</b>
         </div>
         <div>
-          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">PHONE NUMBER</span>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">REGISTERED MOBILE PHONE</span>
           <b>📞 ${vendor.phone || 'N/A'}</b>
         </div>
         <div>
-          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">EMAIL ADDRESS</span>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">OFFICIAL EMAIL ADDRESS</span>
           <b>✉️ ${vendor.email || 'N/A'}</b>
         </div>
         <div>
-          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">VERTICAL / CATEGORY</span>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">BUSINESS VERTICAL</span>
           <span class="status-badge" style="background:#FFF7ED; color:#EA580C; font-weight:700; padding:2px 8px;">
-            ${(vendor.vendor_category || vendor.business_type || 'FOOD').toUpperCase()}
+            ${cat.toUpperCase()}
           </span>
         </div>
         <div>
-          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">SERVICE RADIUS</span>
-          <b>📍 ${vendor.service_radius_km || 10} KM Radius</b>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">DELIVERY SERVICE RADIUS</span>
+          <b>📍 ${vendor.service_radius_km || 8} KM Radius</b>
         </div>
         <div>
           <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">OPERATING HOURS</span>
-          <b>⏰ ${vendor.opening_time ? vendor.opening_time.slice(0, 5) : '08:00'} - ${vendor.closing_time ? vendor.closing_time.slice(0, 5) : '23:00'}</b>
+          <b>⏰ ${vendor.opening_time ? String(vendor.opening_time).slice(0, 5) : '08:00'} - ${vendor.closing_time ? String(vendor.closing_time).slice(0, 5) : '23:00'}</b>
         </div>
         <div>
-          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">PLATFORM COMMISSION</span>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">PLATFORM COMMISSION RATE</span>
           <b style="color:var(--royal-gold);">${vendor.commission_rate || 15}% per order</b>
         </div>
       </div>
 
       <!-- Address Row -->
       <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color); font-size: 13px;">
-        <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600; margin-bottom:2px;">REGISTERED STORE ADDRESS</span>
+        <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600; margin-bottom:2px;">PHYSICAL STORE ADDRESS</span>
         <b style="color:var(--text-dark);">📍 ${vendor.address || 'Address pending'} ${vendor.city ? `, ${vendor.city}` : ''} ${vendor.state ? `, ${vendor.state}` : ''} ${vendor.pincode ? `- ${vendor.pincode}` : ''}</b>
       </div>
 
       <!-- Bank Details Row -->
       ${(bank.account_no || bank.upi_id || bank.account_holder) ? `
         <div style="margin-top: 12px; padding: 10px 14px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12.5px;">
-          <span style="font-weight:700; color:var(--text-dark); display:block; margin-bottom:4px;">🏦 Bank Settlement Details:</span>
+          <span style="font-weight:700; color:var(--text-dark); display:block; margin-bottom:4px;">🏦 Bank Settlement Account:</span>
           <span style="color:var(--text-muted);">Account Holder:</span> <b>${bank.account_holder || vendor.owner_name || 'N/A'}</b> &bull;
           <span style="color:var(--text-muted);">A/C No:</span> <b>${bank.account_no || 'N/A'}</b> &bull;
           <span style="color:var(--text-muted);">IFSC:</span> <b>${bank.ifsc || 'N/A'}</b> &bull;
           <span style="color:var(--text-muted);">UPI ID:</span> <b>${bank.upi_id || 'N/A'}</b>
         </div>
-      ` : ''}
+      ` : `
+        <div style="margin-top: 12px; padding: 8px 12px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; font-size: 12px; color: #92400E;">
+          🏦 <b>Bank Details:</b> Pending partner submission during settlement onboarding.
+        </div>
+      `}
     </div>
 
     <!-- 2. KYC DOCUMENTS VERIFICATION LIST -->
     <div style="margin-bottom: 8px;">
       <h4 style="margin: 0 0 12px; font-size: 15px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 8px;">
-        <span>📑</span> Role-Wise KYC Documents (${Object.keys(docs).length})
+        <span>📑</span> Role-Wise KYC Documents (${expectedDocs.length} Mandatory)
       </h4>
     </div>
 
     <div style="display:flex; flex-direction:column; gap:14px;">
-      ${Object.keys(docs).map(key => {
+      ${expectedDocs.map(docDef => {
+        const key = docDef.key;
         const rawUrl = (docs[key] ? String(docs[key]) : '');
-        const status = verif[key] || 'pending';
-        const formattedKey = key.replace(/_/g, ' ').toUpperCase();
+        const hasFile = rawUrl && rawUrl.length > 5;
+        const status = verif[key] || (hasFile ? 'pending' : 'missing');
+        const formattedKey = docDef.title;
 
-        // Calculate clean display preview that never shows a broken icon
         let isLocalOrFile = false;
         let originalFileName = '';
         let displayUrl = '';
 
-        if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:image')) {
-          displayUrl = rawUrl;
-        } else if (rawUrl.startsWith('/uploads')) {
-          displayUrl = window.location.origin + rawUrl;
-        } else if (rawUrl.length > 0) {
-          isLocalOrFile = true;
-          originalFileName = rawUrl.split(/[\\/]/).pop() || 'document.jpg';
-        } else {
-          displayUrl = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80';
+        if (hasFile) {
+          if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:image')) {
+            displayUrl = rawUrl;
+          } else if (rawUrl.startsWith('/uploads')) {
+            displayUrl = backendBase + rawUrl;
+          } else {
+            isLocalOrFile = true;
+            originalFileName = rawUrl.split(/[\\/]/).pop() || 'document.jpg';
+          }
+        }
+
+        if (!hasFile) {
+          return `
+            <div style="border:1px dashed #CBD5E1; border-radius:10px; padding:14px; background:#FAFAFA;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div>
+                  <span style="font-size:13.5px; font-weight:700; color:var(--text-dark);">${formattedKey}</span>
+                  <span style="display:block; font-size:11px; color:#D97706; margin-top:2px; font-weight:600;">⚠️ Not Uploaded Yet by Partner</span>
+                </div>
+                <span class="status-badge" style="background:#FEF3C7; color:#D97706; font-weight:700;">
+                  NOT SUBMITTED
+                </span>
+              </div>
+              <div style="display:flex; gap:14px; align-items:center;">
+                <div style="width:110px; height:75px; border-radius:8px; border:1px dashed #D1D5DB; background:#F3F4F6; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#9CA3AF; flex-shrink:0;">
+                  <span style="font-size:22px;">📁</span>
+                  <span style="font-size:9px; font-weight:600; color:#6B7280;">No Upload</span>
+                </div>
+                <div style="flex:1;">
+                  <p style="margin:0 0 6px; font-size:12px; color:var(--text-muted);">${docDef.desc}</p>
+                  <span style="font-size:11px; color:#6B7280;">Partner will be prompted to attach this document before store goes live.</span>
+                </div>
+              </div>
+            </div>
+          `;
         }
 
         return `
@@ -912,7 +964,7 @@ function inspectVendorKyc(vendorId) {
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
               <div>
                 <span style="font-size:13.5px; font-weight:700; color:var(--text-dark);">${formattedKey}</span>
-                ${isLocalOrFile ? `<span style="display:block; font-size:11px; color:#2563EB; margin-top:2px; font-weight:600;">📱 Mobile Upload: ${originalFileName}</span>` : ''}
+                ${isLocalOrFile ? `<span style="display:block; font-size:11px; color:#2563EB; margin-top:2px; font-weight:600;">📱 Mobile Attachment: ${originalFileName}</span>` : ''}
               </div>
               <span class="status-badge ${status === 'approved' ? 'badge-active' : (status === 'rejected' ? 'badge-cancelled' : 'badge-pending')}">
                 ${status.toUpperCase()}
@@ -928,20 +980,21 @@ function inspectVendorKyc(vendorId) {
                 </div>
               ` : `
                 <div style="position:relative; width:110px; height:75px; flex-shrink:0;">
-                  <a href="${displayUrl}" target="_blank" title="Click to view full size">
+                  <a href="${displayUrl}" target="_blank" title="Click to view full image" style="text-decoration:none; display:block;">
                     <img src="${displayUrl}" 
                          onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" 
                          style="width:110px; height:75px; object-fit:cover; border-radius:8px; border:1px solid #CBD5E1; background:white; display:block;" />
+                    <div style="display:none; width:110px; height:75px; border-radius:8px; border:1px solid #BFDBFE; background:#EFF6FF; flex-direction:column; align-items:center; justify-content:center; color:#1D4ED8;">
+                      <span style="font-size:22px;">📑</span>
+                      <span style="font-size:9.5px; font-weight:700; color:#1E40AF; text-align:center; padding:0 4px;">${key.replace(/_/g, ' ').toUpperCase()}</span>
+                      <span style="font-size:8px; color:#3B82F6;">Click to View</span>
+                    </div>
                   </a>
-                  <div style="display:none; width:110px; height:75px; border-radius:8px; border:1px solid #CBD5E1; background:#F1F5F9; flex-direction:column; align-items:center; justify-content:center; color:#64748B;">
-                    <span style="font-size:22px;">📑</span>
-                    <span style="font-size:9.5px; font-weight:600;">Document</span>
-                  </div>
                 </div>
               `}
               <div style="flex:1;">
                 <p style="margin:0 0 8px; font-size:12px; color:var(--text-muted);">
-                  ${isLocalOrFile ? 'Document captured & attached on device. Ready for admin verification.' : 'Uploaded document for verification. Inspect clarity and validity.'}
+                  ${docDef.desc}
                 </p>
                 <div style="display:flex; gap:8px;">
                   <button class="btn-primary" style="padding:4px 10px; font-size:11px; background:#16A34A;" onclick="updateDocStatus(${vendor.id}, '${key}', 'approved')">
@@ -1442,13 +1495,13 @@ async function renderProducts(container) {
             ${products.length ? products.map(p => {
               const hasAiImg = !!p.ai_generated_image_url;
               const hasAiVid = !!p.ai_generated_video_url;
-              const displayImg = p.ai_generated_image_url || p.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=150&q=80';
+              const displayImg = p.ai_generated_image_url || p.image_url || 'https://placehold.co/100x100/F8FAFC/64748B?text=Product';
 
               return `
                 <tr>
                   <td>
                     <div style="display:flex; align-items:center; gap:8px;">
-                      <img src="${displayImg}" style="width:48px; height:48px; object-fit:cover; border-radius:8px; border:1px solid #E2E8F0;" />
+                      <img src="${displayImg}" onerror="this.onerror=null; this.src='https://placehold.co/100x100/F8FAFC/64748B?text=Product';" style="width:48px; height:48px; object-fit:cover; border-radius:8px; border:1px solid #E2E8F0;" />
                       <div>
                         ${hasAiImg ? `<span style="display:block; font-size:10px; background:#FEF3C7; color:#D97706; padding:1px 6px; border-radius:8px; font-weight:800; margin-bottom:2px;">✨ AI Image</span>` : ''}
                         ${hasAiVid ? `<span style="display:block; font-size:10px; background:#E0F2FE; color:#0EA5E9; padding:1px 6px; border-radius:8px; font-weight:800; cursor:pointer;" onclick="window.open('${p.ai_generated_video_url}', '_blank')">🎬 AI Video ↗</span>` : ''}
@@ -2491,7 +2544,7 @@ async function saveProductAction() {
         price: parseFloat(price),
         discount_price: discount_price ? parseFloat(discount_price) : null,
         food_type,
-        image_url: imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=85',
+        image_url: imageUrl || ('https://image.pollinations.ai/prompt/' + encodeURIComponent('delicious ' + name + ' dish commercial food photography') + '?width=800&height=800&nologo=true'),
         ai_generated_image_url: imageUrl || null,
         ai_generated_video_url: videoUrl || null
       })

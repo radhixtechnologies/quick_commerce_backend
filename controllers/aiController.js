@@ -110,126 +110,13 @@ function searchWikiImage(query) {
   });
 }
 
-// Extensive Curated 4K Commercial Food & Product Studio Photography Database
+// Dynamic AI Studio Food & Product Photography Generator (Powered by Flux & Pollinations)
 async function resolveDishImage(productName, category = 'food') {
-  const norm = (productName || '').toLowerCase().trim();
-
-  const curated = {
-    pasta: [
-      'https://images.unsplash.com/photo-1621996346565-e3d5d6281161?auto=format&fit=crop&w=800&q=85',
-      'https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&w=800&q=85',
-      'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=800&q=85',
-      'https://images.unsplash.com/photo-1608897013039-887f21d8c804?auto=format&fit=crop&w=800&q=85'
-    ],
-    pizza: [
-      'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=85',
-      'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=85',
-      'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=800&q=85'
-    ],
-    burger: [
-      'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=85',
-      'https://images.unsplash.com/photo-1586190848861-99aa4a171e90?auto=format&fit=crop&w=800&q=85'
-    ],
-    biryani: [
-      'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=85',
-      'https://images.unsplash.com/photo-1589302168068-964664d93dc0?auto=format&fit=crop&w=800&q=85'
-    ],
-    noodle: [
-      'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=85',
-      'https://images.unsplash.com/photo-1612927601601-6638404737ce?auto=format&fit=crop&w=800&q=85'
-    ],
-    chowmein: [
-      'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=85'
-    ],
-    paneer: [
-      'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=800&q=85',
-      'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=800&q=85'
-    ],
-    tikka: [
-      'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=800&q=85',
-      'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?auto=format&fit=crop&w=800&q=85'
-    ],
-    salad: [
-      'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=85',
-      'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=85'
-    ],
-    sandwich: [
-      'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=800&q=85'
-    ],
-    cake: [
-      'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=85'
-    ],
-    pastry: [
-      'https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=800&q=85'
-    ],
-    coffee: [
-      'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=800&q=85'
-    ],
-    tea: [
-      'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=800&q=85'
-    ],
-    ice_cream: [
-      'https://images.unsplash.com/photo-1497034825429-c343d7c6a68f?auto=format&fit=crop&w=800&q=85'
-    ],
-    dosa: [
-      'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=85'
-    ],
-    samosa: [
-      'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=85'
-    ],
-    roll: [
-      'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?auto=format&fit=crop&w=800&q=85'
-    ],
-    thali: [
-      'https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?auto=format&fit=crop&w=800&q=85'
-    ],
-    chicken: [
-      'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?auto=format&fit=crop&w=800&q=85'
-    ],
-    fish: [
-      'https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=800&q=85'
-    ],
-    curry: [
-      'https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=800&q=85'
-    ],
-    rice: [
-      'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=800&q=85'
-    ],
-    fruit: [
-      'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=800&q=85'
-    ],
-    apple: [
-      'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=800&q=85'
-    ],
-    vegetable: [
-      'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=85'
-    ],
-    milk: [
-      'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=800&q=85'
-    ]
-  };
-
-  // Direct Keyword Matching
-  for (const [key, photos] of Object.entries(curated)) {
-    if (norm.includes(key)) {
-      return photos[Math.floor(Math.random() * photos.length)];
-    }
-  }
-
-  // Live Wikimedia HD Search for any specific Indian or Global dish
-  try {
-    const wikiImg = await searchWikiImage(productName);
-    if (wikiImg) return wikiImg;
-  } catch (_) {}
-
-  // Category fallback
-  const fallbacks = {
-    food: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=85',
-    grocery: 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=800&q=85',
-    ecommerce: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=85',
-    service_based: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=85'
-  };
-  return fallbacks[category] || fallbacks.food;
+  const norm = (productName || 'Special Item').trim();
+  const cleanCategory = category === 'food' ? 'dish' : (category === 'grocery' ? 'fresh grocery item' : 'retail commercial item');
+  const promptText = `appetizing gourmet ${norm} ${cleanCategory}, high-end commercial 4K food studio photography, delicious presentation, warm ambient lighting, depth of field, 8k resolution`;
+  const encodedPrompt = encodeURIComponent(promptText);
+  return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=800&nologo=true&model=flux`;
 }
 
 // 2. GEMINI AI: Generate Commercial Product Image Studio Assets
@@ -304,7 +191,7 @@ async function generateProductVideo(req, res) {
       videoUrl: videoUrl,
       video_url: videoUrl,
       duration_seconds: duration_sec,
-      thumbnail_url: image_url || 'https://images.unsplash.com/photo-1621996346565-e3d5d6281161?auto=format&fit=crop&w=800&q=85',
+      thumbnail_url: image_url || (await resolveDishImage(product_name, category)),
       motion_style: 'Cinematic Slow Motion 360 Spin + Dynamic Light Reflections',
       status: 'ready'
     });
