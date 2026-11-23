@@ -52,21 +52,21 @@ async function apiRequest(endpoint, options = {}) {
   return data;
 }
 
-// Default Admin State (pre-populated with slide exact data for instant preview)
+// Default Admin State (Starts clean at zero until live records are created)
 const adminState = {
   kpis: {
-    totalCustomers: 1245,
-    totalVendors: 320,
-    totalDeliveryBoys: 186,
-    totalOrders: 3562,
-    pendingOrders: 245,
-    completedOrders: 2980,
-    cancelledOrders: 337,
-    totalSales: 2486500,
-    commission: 372975,
-    deliveryCharges: 125650,
-    vendorEarnings: 1845200,
-    deliveryBoyEarnings: 462300
+    totalCustomers: 0,
+    totalVendors: 0,
+    totalDeliveryBoys: 0,
+    totalOrders: 0,
+    pendingOrders: 0,
+    completedOrders: 0,
+    cancelledOrders: 0,
+    totalSales: 0,
+    commission: 0,
+    deliveryCharges: 0,
+    vendorEarnings: 0,
+    deliveryBoyEarnings: 0
   },
   slabs: [
     { id: 1, min_distance_km: 0.0, max_distance_km: 3.0, charge: 20.0, is_available: 1, title: '0 - 3 KM (Ultra-fast)' },
@@ -75,23 +75,9 @@ const adminState = {
     { id: 4, min_distance_km: 7.01, max_distance_km: 10.0, charge: 50.0, is_available: 1, title: '7 - 10 KM (Extended Area)' },
     { id: 5, min_distance_km: 10.01, max_distance_km: 99.0, charge: 0.0, is_available: 0, title: '10 KM+ (Not Available)' }
   ],
-  recentOrders: [
-    { id: 1, order_code: '#ORD1256', customer: 'Amit Sharma', vendor: 'Spice Hub', amount: 498, status: 'preparing' },
-    { id: 2, order_code: '#ORD1255', customer: 'Neha Verma', vendor: 'Fresh Mart', amount: 697, status: 'out_for_delivery' },
-    { id: 3, order_code: '#ORD1254', customer: 'Rahul Khan', vendor: 'Daily Needs', amount: 249, status: 'delivered' },
-    { id: 4, order_code: '#ORD1253', customer: 'Pooja Singh', vendor: 'Green Store', amount: 399, status: 'cancelled' },
-    { id: 5, order_code: '#ORD1252', customer: 'Vikram Yadav', vendor: 'Super Market', amount: 549, status: 'preparing' }
-  ],
-  topVendors: [
-    { name: 'Spice Hub', orders: '1,245 orders', sales: '₹ 4,82,500' },
-    { name: 'Fresh Mart', orders: '980 orders', sales: '₹ 3,21,400' },
-    { name: 'Daily Needs', orders: '876 orders', sales: '₹ 2,94,300' }
-  ],
-  topProducts: [
-    { name: 'Fresh Milk', price: '₹ 32', orders: '980 orders' },
-    { name: 'Basmati Rice', price: '₹ 299', orders: '876 orders' },
-    { name: 'Chicken', price: '₹ 249', orders: '740 orders' }
-  ],
+  recentOrders: [],
+  topVendors: [],
+  topProducts: [],
   settings: {
     free_delivery_threshold: 299.00,
     max_delivery_radius_km: 10.00,
@@ -561,9 +547,9 @@ function initDashboardCharts() {
     data: {
       labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
       datasets: [
-        { label: 'Completed', data: [340, 420, 390, 520, 480, 610, 680], backgroundColor: '#2E9E44', borderRadius: 4 },
-        { label: 'Pending', data: [35, 42, 28, 40, 32, 50, 45], backgroundColor: '#F59E0B', borderRadius: 4 },
-        { label: 'Cancelled', data: [12, 18, 15, 22, 19, 25, 20], backgroundColor: '#E53935', borderRadius: 4 }
+        { label: 'Completed', data: [0, 0, 0, 0, 0, 0, 0], backgroundColor: '#2E9E44', borderRadius: 4 },
+        { label: 'Pending', data: [0, 0, 0, 0, 0, 0, 0], backgroundColor: '#F59E0B', borderRadius: 4 },
+        { label: 'Cancelled', data: [0, 0, 0, 0, 0, 0, 0], backgroundColor: '#E53935', borderRadius: 4 }
       ]
     },
     options: {
@@ -587,11 +573,7 @@ async function renderCustomers(container) {
     const res = await apiRequest('/admin/customers');
     customers = res.customers || [];
   } catch (e) {
-    customers = [
-      { id: 10, name: 'Neha Verma', email: 'customer1@gmail.com', phone: '+919999900010', city: 'Noida', orders: 18, status: 'active' },
-      { id: 11, name: 'Pooja Singh', email: 'customer2@gmail.com', phone: '+919999900011', city: 'Noida', orders: 12, status: 'active' },
-      { id: 12, name: 'Rohit Gupta', email: 'rohit@gmail.com', phone: '+919999900012', city: 'Noida', orders: 5, status: 'blocked' }
-    ];
+    customers = [];
   }
 
   container.innerHTML = `
@@ -913,11 +895,7 @@ async function renderDeliveryBoys(container) {
     const res = await apiRequest('/admin/delivery-boys');
     riders = res.deliveryBoys || [];
   } catch (e) {
-    riders = [
-      { id: 1, full_name: 'Rahul Khan', vehicle_type: 'bike', vehicle_number: 'UP16-AB-1234', phone: '+919999900007', total_deliveries: 412, wallet_balance: 1450, total_cod_collected: 680, is_online: 1, approval_status: 'approved' },
-      { id: 2, full_name: 'Amit Sharma', vehicle_type: 'scooter', vehicle_number: 'UP16-CD-5678', phone: '+919999900008', total_deliveries: 385, wallet_balance: 1220, total_cod_collected: 450, is_online: 1, approval_status: 'approved' },
-      { id: 3, full_name: 'Vikram Yadav', vehicle_type: 'ev', vehicle_number: 'UP16-EV-9012', phone: '+919999900009', total_deliveries: 290, wallet_balance: 980, total_cod_collected: 0, is_online: 0, approval_status: 'approved' }
-    ];
+    riders = [];
   }
 
   container.innerHTML = `
@@ -1303,7 +1281,7 @@ async function renderProducts(container) {
     const res = await apiRequest('/admin/products');
     products = res.products || [];
   } catch (e) {
-    products = db?.memoryStore?.products || [];
+    products = [];
   }
 
   container.innerHTML = `
@@ -1333,7 +1311,7 @@ async function renderProducts(container) {
             </tr>
           </thead>
           <tbody>
-            ${products.map(p => {
+            ${products.length ? products.map(p => {
               const hasAiImg = !!p.ai_generated_image_url;
               const hasAiVid = !!p.ai_generated_video_url;
               const displayImg = p.ai_generated_image_url || p.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=150&q=80';
@@ -1350,7 +1328,7 @@ async function renderProducts(container) {
                     </div>
                   </td>
                   <td><b>${p.name}</b></td>
-                  <td>${p.vendor_name || p.vendor || 'Spice Hub'}</td>
+                  <td>${p.vendor_name || p.vendor || 'Vendor Store'}</td>
                   <td>${p.category_name || p.category || 'General'}</td>
                   <td style="font-weight:700; color:var(--text-dark);">₹${p.price}</td>
                   <td>${p.stock}</td>
@@ -1361,7 +1339,7 @@ async function renderProducts(container) {
                   </td>
                 </tr>
               `;
-            }).join('')}
+            }).join('') : `<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--text-muted);">No products found in catalog</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -1381,13 +1359,7 @@ async function renderOrders(container) {
     const res = await apiRequest('/admin/orders');
     allLoadedOrders = res.orders || [];
   } catch (e) {
-    allLoadedOrders = [
-      { id: 1, order_code: '#ORD1256', customer_name: 'Amit Sharma', vendor_name: 'Spice Hub', total_amount: 498, payment_method: 'UPI', order_status: 'preparing', created_at: new Date().toISOString() },
-      { id: 2, order_code: '#ORD1255', customer_name: 'Neha Verma', vendor_name: 'Fresh Mart', total_amount: 697, payment_method: 'CARD', order_status: 'out_for_delivery', created_at: new Date().toISOString() },
-      { id: 3, order_code: '#ORD1254', customer_name: 'Rahul Khan', vendor_name: 'Daily Needs', total_amount: 249, payment_method: 'COD', order_status: 'delivered', created_at: new Date().toISOString() },
-      { id: 4, order_code: '#ORD1253', customer_name: 'Pooja Singh', vendor_name: 'Green Store', total_amount: 399, payment_method: 'COD', order_status: 'cancelled', created_at: new Date().toISOString() },
-      { id: 5, order_code: '#ORD1252', customer_name: 'Vikram Yadav', vendor_name: 'Super Market', total_amount: 549, payment_method: 'UPI', order_status: 'preparing', created_at: new Date().toISOString() }
-    ];
+    allLoadedOrders = [];
   }
 
   container.innerHTML = `
@@ -1543,11 +1515,14 @@ async function renderDeliveryManagement(container) {
 // 4.9 COMMISSION MANAGEMENT
 // -----------------------------------------------------------------------------
 function renderCommission(container) {
+  const commOrders = allLoadedOrders.filter(o => o.order_status === 'delivered');
+  const rate = adminState.settings.default_commission_rate || 15;
+
   container.innerHTML = `
     <div class="card-panel">
       <div class="panel-header">
         <h3>Platform Commission & Revenue Distribution</h3>
-        <span style="font-size:13px; font-weight:600; color:var(--primary-green)">Default Rate: ${adminState.settings.default_commission_rate || 15}%</span>
+        <span style="font-size:13px; font-weight:600; color:var(--primary-green)">Default Rate: ${rate}%</span>
       </div>
       <p style="font-size:13.5px; color:var(--text-muted); margin-bottom:18px;">
         Commission is deducted automatically on every completed order. Vendors receive net earnings via automated settlement.
@@ -1565,30 +1540,21 @@ function renderCommission(container) {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td><b>#ORD1256</b></td>
-              <td>Spice Hub</td>
-              <td>₹ 498.00</td>
-              <td>15%</td>
-              <td style="color:#E53935; font-weight:700">₹ 68.00</td>
-              <td style="color:var(--primary-green); font-weight:700">₹ 395.00</td>
-            </tr>
-            <tr>
-              <td><b>#ORD1255</b></td>
-              <td>Fresh Mart</td>
-              <td>₹ 697.00</td>
-              <td>12%</td>
-              <td style="color:#E53935; font-weight:700">₹ 77.00</td>
-              <td style="color:var(--primary-green); font-weight:700">₹ 590.00</td>
-            </tr>
-            <tr>
-              <td><b>#ORD1254</b></td>
-              <td>Daily Needs</td>
-              <td>₹ 249.00</td>
-              <td>10%</td>
-              <td style="color:#E53935; font-weight:700">₹ 24.00</td>
-              <td style="color:var(--primary-green); font-weight:700">₹ 205.00</td>
-            </tr>
+            ${commOrders.length ? commOrders.map(o => {
+              const total = parseFloat(o.total_amount || 0);
+              const comm = (total * (rate / 100)).toFixed(2);
+              const vendorShare = (total - comm).toFixed(2);
+              return `
+                <tr>
+                  <td><b>${o.order_code || ('#ORD' + o.id)}</b></td>
+                  <td>${o.vendor_name || 'Vendor'}</td>
+                  <td>₹ ${total.toFixed(2)}</td>
+                  <td>${rate}%</td>
+                  <td style="color:#E53935; font-weight:700">₹ ${comm}</td>
+                  <td style="color:var(--primary-green); font-weight:700">₹ ${vendorShare}</td>
+                </tr>
+              `;
+            }).join('') : `<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">No delivered orders for commission calculation yet</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -1600,6 +1566,8 @@ function renderCommission(container) {
 // 4.10 PAYMENT & FINANCE
 // -----------------------------------------------------------------------------
 function renderPayments(container) {
+  const codOrders = allLoadedOrders.filter(o => o.payment_method === 'COD');
+
   container.innerHTML = `
     <div class="card-panel">
       <div class="panel-header">
@@ -1617,22 +1585,17 @@ function renderPayments(container) {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td><b>Rahul Khan</b></td>
-              <td>#ORD1254</td>
-              <td><b>₹ 249.00</b></td>
-              <td><span class="status-badge badge-pending">PENDING VERIFICATION</span></td>
-              <td>
-                <button class="btn-primary" style="padding:4px 8px; font-size:11px;" onclick="showToast('COD collection verified!')">Verify Deposit</button>
-              </td>
-            </tr>
-            <tr>
-              <td><b>Amit Sharma</b></td>
-              <td>#ORD1250</td>
-              <td><b>₹ 450.00</b></td>
-              <td><span class="status-badge badge-approved">VERIFIED</span></td>
-              <td><span style="font-size:12px; color:var(--text-muted)">Completed</span></td>
-            </tr>
+            ${codOrders.length ? codOrders.map(o => `
+              <tr>
+                <td><b>${o.rider_name || 'Assigned Rider'}</b></td>
+                <td>${o.order_code || ('#ORD' + o.id)}</td>
+                <td><b>₹ ${o.total_amount}</b></td>
+                <td><span class="status-badge badge-${o.order_status === 'delivered' ? 'approved' : 'pending'}">${o.order_status === 'delivered' ? 'VERIFIED' : 'PENDING'}</span></td>
+                <td>
+                  <button class="btn-primary" style="padding:4px 8px; font-size:11px;" onclick="showToast('COD collection verified!')">Verify Deposit</button>
+                </td>
+              </tr>
+            `).join('') : `<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">No COD collections recorded yet</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -1649,11 +1612,7 @@ async function renderCoupons(container) {
     const res = await apiRequest('/admin/coupons');
     coupons = res.coupons || [];
   } catch (e) {
-    coupons = [
-      { code: 'WELCOME50', title: '50% Off First Order', discount_type: 'percentage', discount_value: 50, min_order_amount: 149, used_count: 320, valid_until: '2027-12-31' },
-      { code: 'QUICK30', title: 'Flat ₹30 Off', discount_type: 'fixed', discount_value: 30, min_order_amount: 199, used_count: 1420, valid_until: '2027-12-31' },
-      { code: 'FREESHIP', title: 'Free Delivery Deal', discount_type: 'percentage', discount_value: 100, min_order_amount: 199, used_count: 850, valid_until: '2027-12-31' }
-    ];
+    coupons = [];
   }
 
   container.innerHTML = `
@@ -1703,10 +1662,7 @@ async function renderBanners(container) {
     const res = await apiRequest('/admin/banners');
     banners = res.banners || [];
   } catch (e) {
-    banners = [
-      { title: '10-Minute Grocery Delivery Guaranteed!', banner_type: 'home', is_active: 1 },
-      { title: 'Flat 50% Off On Delicious Restaurant Curries', banner_type: 'restaurant', is_active: 1 }
-    ];
+    banners = [];
   }
 
   container.innerHTML = `
@@ -1873,11 +1829,7 @@ async function renderReviews(container) {
     const res = await apiRequest('/admin/reviews');
     reviews = res.reviews || [];
   } catch (e) {
-    reviews = [
-      { id: 1, user_name: 'Neha Verma', vendor_name: 'Spice Hub', product_name: 'Butter Paneer', rating: 5, comment: 'Butter paneer was warm and piping fresh! Reached in 13 mins.', status: 'approved' },
-      { id: 2, user_name: 'Pooja Singh', vendor_name: 'Fresh Mart', product_name: 'Farm Milk', rating: 5, comment: 'Chilled fresh milk in early morning. Superb delivery service.', status: 'approved' },
-      { id: 3, user_name: 'Neha Verma', vendor_name: 'Sweet Delights Bakery', product_name: 'Truffle Cake', rating: 5, comment: 'The chocolate truffle cake was absolute heaven!', status: 'approved' }
-    ];
+    reviews = [];
   }
 
   container.innerHTML = `

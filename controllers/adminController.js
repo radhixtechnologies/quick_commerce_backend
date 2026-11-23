@@ -31,73 +31,84 @@ async function getDashboardKPIs(req, res) {
       const o = orderAgg[0] || {};
 
       kpiData = {
-        totalCustomers: roleMap['customer'] || 1245,
-        totalVendors: roleMap['vendor'] || 320,
-        totalDeliveryBoys: roleMap['delivery_boy'] || 186,
-        totalOrders: o.total_orders || 3562,
-        pendingOrders: o.pending_orders || 245,
-        completedOrders: o.completed_orders || 2980,
-        cancelledOrders: o.cancelled_orders || 337,
-        totalSales: o.total_sales || 2486500,
-        commission: o.commission || 372975,
-        deliveryCharges: o.delivery_charges || 125650,
-        vendorEarnings: o.vendor_earnings || 1845200,
-        deliveryBoyEarnings: o.delivery_boy_earnings || 462300
+        totalCustomers: roleMap['customer'] || 0,
+        totalVendors: roleMap['vendor'] || 0,
+        totalDeliveryBoys: roleMap['delivery_boy'] || 0,
+        totalOrders: o.total_orders || 0,
+        pendingOrders: o.pending_orders || 0,
+        completedOrders: o.completed_orders || 0,
+        cancelledOrders: o.cancelled_orders || 0,
+        totalSales: o.total_sales || 0,
+        commission: o.commission || 0,
+        deliveryCharges: o.delivery_charges || 0,
+        vendorEarnings: o.vendor_earnings || 0,
+        deliveryBoyEarnings: o.delivery_boy_earnings || 0
       };
     } else {
-      // Slide-accurate exact KPI numbers
+      const customersCount = (db.memoryStore.users || []).filter(u => u.role === 'customer').length;
+      const vendorsCount = (db.memoryStore.vendors || []).length;
+      const ridersCount = (db.memoryStore.delivery_boys || []).length;
+      const orders = db.memoryStore.orders || [];
+      const totalOrders = orders.length;
+      const pendingOrders = orders.filter(o => ['placed', 'accepted', 'preparing', 'ready_for_pickup'].includes(o.order_status)).length;
+      const completedOrders = orders.filter(o => o.order_status === 'delivered').length;
+      const cancelledOrders = orders.filter(o => o.order_status === 'cancelled').length;
+      const totalSales = orders.filter(o => o.order_status === 'delivered').reduce((s, o) => s + (o.amount || 0), 0);
+      const commission = orders.filter(o => o.order_status === 'delivered').reduce((s, o) => s + (o.platform_commission || (o.amount * 0.15) || 0), 0);
+      const deliveryCharges = orders.filter(o => o.order_status === 'delivered').reduce((s, o) => s + (o.delivery_charge || 0), 0);
+      const vendorEarnings = totalSales - commission;
+      const deliveryBoyEarnings = deliveryCharges;
+
       kpiData = {
-        totalCustomers: 1245,
-        totalVendors: 320,
-        totalDeliveryBoys: 186,
-        totalOrders: 3562,
-        pendingOrders: 245,
-        completedOrders: 2980,
-        cancelledOrders: 337,
-        totalSales: 2486500,
-        commission: 372975,
-        deliveryCharges: 125650,
-        vendorEarnings: 1845200,
-        deliveryBoyEarnings: 462300
+        totalCustomers: customersCount,
+        totalVendors: vendorsCount,
+        totalDeliveryBoys: ridersCount,
+        totalOrders,
+        pendingOrders,
+        completedOrders,
+        cancelledOrders,
+        totalSales,
+        commission,
+        deliveryCharges,
+        vendorEarnings,
+        deliveryBoyEarnings
       };
     }
 
-    // Chart analytics & Tables
+    // Dynamic Chart analytics & Tables
     const analytics = {
       orderStatistics: {
         days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        completed: [340, 420, 390, 520, 480, 610, 680],
-        pending: [35, 42, 28, 40, 32, 50, 45],
-        cancelled: [12, 18, 15, 22, 19, 25, 20]
+        completed: [0, 0, 0, 0, 0, 0, 0],
+        pending: [0, 0, 0, 0, 0, 0, 0],
+        cancelled: [0, 0, 0, 0, 0, 0, 0]
       },
       salesOverview: {
         months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-        revenue: [1450000, 1680000, 1920000, 2100000, 2350000, 2486500, 2750000]
+        revenue: [0, 0, 0, 0, 0, 0, 0]
       },
       platformGrowth: {
-        customers: '+12%',
-        vendors: '+8%',
-        deliveryBoys: '+10%',
-        orders: '+15%'
+        customers: '0%',
+        vendors: '0%',
+        deliveryBoys: '0%',
+        orders: '0%'
       },
-      topVendors: [
-        { name: 'Spice Hub', orders: '1,245 orders', sales: 482500, type: 'Restaurant' },
-        { name: 'Fresh Mart', orders: '980 orders', sales: 321400, type: 'Grocery' },
-        { name: 'Daily Needs', orders: '876 orders', sales: 294300, type: 'Local Store' },
-        { name: 'Super Market', orders: '654 orders', sales: 215000, type: 'Grocery' }
-      ],
-      topProducts: [
-        { name: 'Fresh Milk', price: 32, salesCount: '1,450 packs', icon: '🥛' },
-        { name: 'Basmati Rice', price: 299, salesCount: '980 packs', icon: '🌾' },
-        { name: 'Chicken Tikka', price: 249, salesCount: '876 orders', icon: '🍗' },
-        { name: 'Truffle Cake', price: 499, salesCount: '420 cakes', icon: '🎂' }
-      ],
-      topCategories: [
-        { name: 'Fruits & Vegetables', productsCount: '1,245 products', icon: '🥦' },
-        { name: 'Dairy & Milk', productsCount: '890 products', icon: '🧀' },
-        { name: 'Snacks & Beverages', productsCount: '765 products', icon: '🥤' },
-        { name: 'Household Items', productsCount: '620 products', icon: '🧼' }
-      ],
+      topVendors: (db.memoryStore.vendors || []).slice(0, 5).map(v => ({
+        name: v.business_name,
+        orders: `${v.total_orders || 0} orders`,
+        sales: v.total_revenue || 0,
+        type: (v.vendor_category || 'food').toUpperCase()
+      })),
+      topProducts: (db.memoryStore.products || []).slice(0, 5).map(p => ({
+        name: p.name,
+        price: p.price,
+        orders: `${p.total_reviews || 0} orders`
+      })),
+      topCategories: (db.memoryStore.categories || []).slice(0, 4).map(c => ({
+        name: c.name,
+        productsCount: `${c.products_count || 0} products`,
+        icon: c.icon_url || '📁'
+      })),
       recentOrders: db.isConnected()
         ? await db.query(`
             SELECT o.id, o.order_code, u.name AS customer, v.business_name AS vendor, o.total_amount AS amount, o.order_status AS status
@@ -106,7 +117,7 @@ async function getDashboardKPIs(req, res) {
             JOIN vendors v ON o.vendor_id = v.id
             ORDER BY o.id DESC LIMIT 5
           `)
-        : db.memoryStore.orders.slice(0, 5).map((o) => ({
+        : (db.memoryStore.orders || []).slice(0, 5).map((o) => ({
             id: o.id,
             order_code: o.order_code,
             customer: o.customer_name,
@@ -189,7 +200,12 @@ async function getAllVendors(req, res) {
 async function updateVendorApproval(req, res) {
   try {
     const { id } = req.params;
-    const { approval_status, rejection_reason, commission_rate } = req.body;
+    const approval_status = req.body.approval_status || req.body.status;
+    const { rejection_reason, commission_rate } = req.body;
+
+    if (!approval_status) {
+      return res.status(400).json({ success: false, message: 'Status or approval_status is required' });
+    }
 
     if (db.isConnected()) {
       await db.query(

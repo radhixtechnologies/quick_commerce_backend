@@ -314,8 +314,9 @@ async function registerVendor(req, res) {
 // 4. VENDOR LOGIN
 async function loginVendor(req, res) {
   try {
-    const { emailOrPhone, password } = req.body;
-    if (!emailOrPhone || !password) {
+    const identifier = req.body.emailOrPhone || req.body.email_or_phone || req.body.email || req.body.phone;
+    const password = req.body.password;
+    if (!identifier || !password) {
       return res.status(400).json({ success: false, message: 'Email/Phone and password are required' });
     }
 
@@ -325,7 +326,7 @@ async function loginVendor(req, res) {
     if (db.isConnected()) {
       const users = await db.query(
         "SELECT * FROM users WHERE (email = ? OR phone = ?) AND role = 'vendor'",
-        [emailOrPhone, emailOrPhone]
+        [identifier, identifier]
       );
       if (users.length > 0) {
         user = users[0];
@@ -334,26 +335,21 @@ async function loginVendor(req, res) {
       }
     } else {
       user = db.memoryStore.users.find(
-        (u) => (u.email === emailOrPhone || u.phone === emailOrPhone) && u.role === 'vendor'
+        (u) => (u.email === identifier || u.phone === identifier) && u.role === 'vendor'
       );
       if (user) {
         vendor = db.memoryStore.vendors.find((v) => v.user_id === user.id);
       }
-      // Demo fallback if default login
-      if (!vendor && (emailOrPhone === 'vendor1@spicehub.com' || emailOrPhone === '+919999900003')) {
-        vendor = db.memoryStore.vendors[0];
-        user = db.memoryStore.users[2];
-      }
     }
 
-    if (!vendor) {
-      return res.status(404).json({ success: false, message: 'Vendor account not found' });
+    if (!user || !vendor) {
+      return res.status(404).json({ success: false, message: 'No registered vendor account found with this email/phone. Please create an account first.' });
     }
 
-    // Verify password (bypass for test account if matches admin123)
-    const valid = password === 'admin123' || (await bcrypt.compare(password, user?.password_hash || ''));
+    // Verify password strictly against registered bcrypt hash
+    const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      return res.status(401).json({ success: false, message: 'Invalid password. Please check your credentials.' });
     }
 
     const token = jwt.sign(

@@ -9,6 +9,7 @@ router.use(authenticate, authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN));
 
 // 4.1 Dashboard
 router.get('/dashboard-kpis', adminController.getDashboardKPIs);
+router.get('/dashboard/kpis', adminController.getDashboardKPIs);
 
 // 4.2 Customer Management
 router.get('/customers', adminController.getAllCustomers);
@@ -17,6 +18,8 @@ router.patch('/customers/:id/status', adminController.toggleCustomerStatus);
 // 4.3 Vendor Management
 router.get('/vendors', adminController.getAllVendors);
 router.patch('/vendors/:id/approval', adminController.updateVendorApproval);
+router.patch('/vendors/:id/status', adminController.updateVendorApproval);
+router.post('/vendors/:id/status', adminController.updateVendorApproval);
 router.patch('/vendors/:id/documents', adminController.updateVendorDocumentStatus);
 
 // 4.4 Delivery Boy Management

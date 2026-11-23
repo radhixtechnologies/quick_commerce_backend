@@ -79,16 +79,18 @@ async function register(req, res) {
 
 async function login(req, res) {
   try {
-    const { emailOrPhone, password, role } = req.body;
+    const identifier = req.body.emailOrPhone || req.body.email_or_phone || req.body.email || req.body.phone;
+    const password = req.body.password;
+    const role = req.body.role;
 
-    if (!emailOrPhone || !password) {
+    if (!identifier || !password) {
       return res.status(400).json({ success: false, message: 'Email/Phone and password are required' });
     }
 
     let user = null;
     if (db.isConnected()) {
       let queryStr = 'SELECT * FROM users WHERE email = ? OR phone = ?';
-      const params = [emailOrPhone, emailOrPhone];
+      const params = [identifier, identifier];
       if (role) {
         queryStr += ' AND role = ?';
         params.push(role);
@@ -98,7 +100,7 @@ async function login(req, res) {
     } else {
       user = db.memoryStore.users.find(
         (u) =>
-          (u.email === emailOrPhone || u.phone === emailOrPhone) &&
+          (u.email === identifier || u.phone === identifier) &&
           (!role || u.role === role)
       );
     }
