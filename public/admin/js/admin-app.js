@@ -138,6 +138,26 @@ function initSocket() {
         if (event.totalAmount) adminState.kpis.totalSales += parseFloat(event.totalAmount);
         renderKPIs();
       }
+      if (event.type === 'NEW_VENDOR_REGISTERED') {
+        adminState.kpis.totalVendors = (adminState.kpis.totalVendors || 0) + 1;
+        renderKPIs();
+        if (currentModule === 'vendors') {
+          renderVendors();
+        }
+      }
+    });
+
+    // Real-time Vendor Registered Event Listener
+    socket.on('vendor_registered', (vendor) => {
+      console.log('⚡ [Admin Panel] New vendor registered in real-time:', vendor);
+      showToast(`🏬 New Vendor Registered: ${vendor.business_name} (${(vendor.vendor_category || 'food').toUpperCase()})`);
+      if (adminState.kpis) {
+        adminState.kpis.totalVendors = (adminState.kpis.totalVendors || 0) + 1;
+        renderKPIs();
+      }
+      if (currentModule === 'vendors') {
+        renderVendors();
+      }
     });
   } catch (e) {
     console.warn('Socket.IO not initialized:', e.message);
@@ -622,6 +642,7 @@ let selectedVendorCategory = 'all';
 let currentInspectingVendor = null;
 
 async function renderVendors(container) {
+  if (!container) container = document.getElementById('moduleContainer');
   try {
     const res = await apiRequest('/admin/vendors');
     allLoadedVendors = res.vendors || [];
