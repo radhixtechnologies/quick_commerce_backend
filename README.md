@@ -31,7 +31,16 @@ Enterprise-grade Quick Commerce backend and management portals supporting **4 Co
 
 ---
 
-## 🚀 Quick Start
+## 🌐 Live Production Deployment
+
+- **Primary Cloud Backend**: [https://quick-commerce-backend-a3f7.onrender.com](https://quick-commerce-backend-a3f7.onrender.com)
+- **Live Admin Web Panel**: [https://quick-commerce-backend-a3f7.onrender.com/admin/](https://quick-commerce-backend-a3f7.onrender.com/admin/)
+- **Live Vendor Web Panel**: [https://quick-commerce-backend-a3f7.onrender.com/vendor/](https://quick-commerce-backend-a3f7.onrender.com/vendor/)
+- **Live REST API Base**: [https://quick-commerce-backend-a3f7.onrender.com/api/v1](https://quick-commerce-backend-a3f7.onrender.com/api/v1)
+
+---
+
+## 🚀 Quick Start (Local Development)
 
 ### 1. Install Dependencies
 ```bash
