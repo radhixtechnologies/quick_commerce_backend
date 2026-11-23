@@ -5,30 +5,251 @@
 
 const API_BASE = '/api/v1';
 let socket;
+let currentVendor = null;
+let currentVendorToken = localStorage.getItem('vendor_token') || null;
 let currentCategory = 'food';
-let currentVendorId = 1;
+let currentVendorId = null;
 let currentRejectOrderId = null;
 let orderChart = null;
 
 let ordersList = [];
 let catalogProducts = [];
 
-// Category to Vendor ID mapping
-const CATEGORY_VENDOR_MAP = {
-  food: 1,
-  ecommerce: 2,
-  service_based: 3,
-  grocery: 4
-};
-
 // Initialize on DOM Load
 document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
-  initSocket();
   initStoreToggle();
-  initCategorySelect();
-  loadAllVendorDataFromBackend();
+
+  // Check if vendor is authenticated
+  const isAuthenticated = checkVendorAuth();
+  if (isAuthenticated) {
+    initSocket();
+    loadAllVendorDataFromBackend();
+  }
 });
+
+// ==========================================================================
+// 0. VENDOR AUTHENTICATION & SESSION MANAGEMENT
+// ==========================================================================
+function getAuthHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  if (currentVendorToken) {
+    headers['Authorization'] = `Bearer ${currentVendorToken}`;
+  }
+  return headers;
+}
+
+function checkVendorAuth() {
+  const token = localStorage.getItem('vendor_token');
+  const vendorJson = localStorage.getItem('vendor_profile');
+
+  if (!token || !vendorJson) {
+    showAuthOverlay();
+    return false;
+  }
+
+  try {
+    currentVendor = JSON.parse(vendorJson);
+    currentVendorToken = token;
+    currentVendorId = currentVendor.id;
+    currentCategory = currentVendor.vendor_category || currentVendor.business_type || 'food';
+
+    updateHeaderVendorInfo(currentVendor);
+    hideAuthOverlay();
+    return true;
+  } catch (e) {
+    showAuthOverlay();
+    return false;
+  }
+}
+
+function showAuthOverlay() {
+  const overlay = document.getElementById('vendorAuthOverlay');
+  if (overlay) overlay.style.display = 'flex';
+}
+
+function hideAuthOverlay() {
+  const overlay = document.getElementById('vendorAuthOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function switchAuthTab(tab) {
+  const tabLogin = document.getElementById('tabBtnLogin');
+  const tabReg = document.getElementById('tabBtnRegister');
+  const formLogin = document.getElementById('formVendorLogin');
+  const formReg = document.getElementById('formVendorRegister');
+  const alertEl = document.getElementById('authAlertBox');
+  if (alertEl) alertEl.className = 'auth-alert';
+
+  if (tab === 'login') {
+    if (tabLogin) tabLogin.classList.add('active');
+    if (tabReg) tabReg.classList.remove('active');
+    if (formLogin) formLogin.style.display = 'block';
+    if (formReg) formReg.style.display = 'none';
+  } else {
+    if (tabLogin) tabLogin.classList.remove('active');
+    if (tabReg) tabReg.classList.add('active');
+    if (formLogin) formLogin.style.display = 'none';
+    if (formReg) formReg.style.display = 'block';
+  }
+}
+
+function showAuthAlert(msg, type = 'error') {
+  const el = document.getElementById('authAlertBox');
+  if (!el) return;
+  el.className = `auth-alert ${type}`;
+  el.innerText = msg;
+}
+
+async function handleVendorLogin(e) {
+  if (e) e.preventDefault();
+  const btn = document.getElementById('btnSubmitLogin');
+  const identifier = document.getElementById('authLoginIdentifier').value.trim();
+  const password = document.getElementById('authLoginPassword').value.trim();
+
+  if (!identifier || !password) {
+    showAuthAlert('Please enter both Email/Phone and Password', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span>⏳ Logging in...</span>';
+
+  try {
+    const res = await fetch(`${API_BASE}/vendor/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emailOrPhone: identifier, password })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success && data.vendor) {
+      currentVendorToken = data.token;
+      currentVendor = data.vendor;
+      currentVendorId = data.vendor.id;
+      currentCategory = data.vendor.vendor_category || data.vendor.business_type || 'food';
+
+      localStorage.setItem('vendor_token', currentVendorToken);
+      localStorage.setItem('vendor_profile', JSON.stringify(currentVendor));
+
+      updateHeaderVendorInfo(currentVendor);
+      hideAuthOverlay();
+      initSocket();
+      loadAllVendorDataFromBackend();
+
+      showToastNotification(`✅ Welcome back, ${currentVendor.business_name}!`);
+    } else {
+      showAuthAlert(data.message || 'Invalid login credentials. Please check phone/password.', 'error');
+    }
+  } catch (err) {
+    showAuthAlert(`Connection failed: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>Log In to Partner Dashboard ➔</span>';
+  }
+}
+
+async function handleVendorRegister(e) {
+  if (e) e.preventDefault();
+  const btn = document.getElementById('btnSubmitRegister');
+  const business_name = document.getElementById('authRegBusinessName').value.trim();
+  const owner_name = document.getElementById('authRegOwnerName').value.trim();
+  const vendor_category = document.getElementById('authRegCategory').value;
+  const phone = document.getElementById('authRegPhone').value.trim();
+  const email = document.getElementById('authRegEmail').value.trim();
+  const password = document.getElementById('authRegPassword').value.trim();
+  const address = document.getElementById('authRegAddress').value.trim();
+
+  if (!business_name || !email || !phone || !password || !address) {
+    showAuthAlert('Please fill in all mandatory fields', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span>⏳ Creating Partner Account...</span>';
+
+  try {
+    const res = await fetch(`${API_BASE}/vendor/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        business_name,
+        owner_name,
+        vendor_category,
+        phone,
+        email,
+        password,
+        address,
+        is_phone_verified: true,
+        bypass_otp: true
+      })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      switchAuthTab('login');
+      document.getElementById('authLoginIdentifier').value = email;
+      document.getElementById('authLoginPassword').value = '';
+      showAuthAlert(`Store account "${business_name}" created! Please enter your password to log in.`, 'success');
+    } else {
+      showAuthAlert(data.message || 'Registration failed. Please check details.', 'error');
+    }
+  } catch (err) {
+    showAuthAlert(`Registration error: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>Create Store Partner Account ➔</span>';
+  }
+}
+
+function updateHeaderVendorInfo(v) {
+  if (!v) return;
+  const title = document.getElementById('storeHeaderTitle');
+  const name = document.getElementById('vendorOwnerName');
+  const vertical = document.getElementById('activeVerticalPill');
+  const badge = document.getElementById('activeCategoryBadge');
+
+  if (title) title.innerText = `Welcome, ${v.business_name || 'Partner Store'}`;
+  if (name) name.innerText = v.business_name || 'Store Partner';
+  const cat = (v.vendor_category || v.business_type || 'FOOD').toUpperCase();
+  if (vertical) vertical.innerText = cat;
+  if (badge) badge.innerText = cat;
+}
+
+function logoutVendor(confirmPrompt = true) {
+  if (confirmPrompt) {
+    const name = currentVendor?.business_name || 'your store partner account';
+    if (!confirm(`Are you sure you want to log out from ${name}?`)) {
+      return;
+    }
+  }
+
+  localStorage.removeItem('vendor_token');
+  localStorage.removeItem('vendor_profile');
+  currentVendorToken = null;
+  currentVendor = null;
+  currentVendorId = null;
+
+  if (socket) {
+    try { socket.disconnect(); } catch (_) {}
+  }
+
+  // Clear UI elements
+  document.getElementById('storeHeaderTitle').innerText = 'Welcome, Partner Store';
+  document.getElementById('vendorOwnerName').innerText = 'Store Partner';
+  document.getElementById('kpiTotalOrders').innerText = '0';
+  document.getElementById('kpiTotalSales').innerText = '₹0';
+  document.getElementById('kpiTotalProducts').innerText = '0';
+  document.getElementById('kpiAvgRating').innerText = '5.0';
+  const recentTable = document.getElementById('recentOrdersTableBody');
+  if (recentTable) recentTable.innerHTML = '';
+  const catalogTable = document.getElementById('catalogTableBody');
+  if (catalogTable) catalogTable.innerHTML = '';
+
+  showAuthOverlay();
+  switchAuthTab('login');
+  showAuthAlert('You have been logged out successfully. Please log in to continue.', 'success');
+}
 
 // ==========================================================================
 // 1. NAVIGATION TABS
@@ -111,7 +332,9 @@ function showToastNotification(msg) {
 // 3. MASTER BACKEND DATA LOADER
 // ==========================================================================
 async function loadAllVendorDataFromBackend() {
-  currentVendorId = CATEGORY_VENDOR_MAP[currentCategory] || 1;
+  if (!currentVendorId) {
+    if (!checkVendorAuth()) return;
+  }
   await Promise.all([
     fetchProfileFromBackend(),
     fetchDashboardStatsFromBackend(),
@@ -121,27 +344,22 @@ async function loadAllVendorDataFromBackend() {
   ]);
 }
 
-// Category Switcher
-function initCategorySelect() {
-  const sel = document.getElementById('vendorCategorySelect');
-  sel.addEventListener('change', (e) => {
-    currentCategory = e.target.value;
-    loadAllVendorDataFromBackend();
-  });
-}
-
 // ==========================================================================
 // 4. BACKEND API: VENDOR PROFILE & LIVE OPEN/CLOSE STATUS
 // ==========================================================================
 async function fetchProfileFromBackend() {
   try {
-    const res = await fetch(`${API_BASE}/vendor/profile?vendor_id=${currentVendorId}`);
+    const res = await fetch(`${API_BASE}/vendor/profile?vendor_id=${currentVendorId}`, {
+      headers: getAuthHeaders()
+    });
+    if (res.status === 401) {
+      logoutVendor(false);
+      return;
+    }
     const data = await res.json();
     if (data.vendor) {
       const v = data.vendor;
-      document.getElementById('storeHeaderTitle').innerText = `Welcome, ${v.business_name}`;
-      document.getElementById('vendorOwnerName').innerText = v.business_name;
-      document.getElementById('activeVerticalPill').innerText = (v.vendor_category || v.business_type || currentCategory).toUpperCase();
+      updateHeaderVendorInfo(v);
 
       // Profile Form inputs
       const nameInput = document.getElementById('profBusinessName');
@@ -240,17 +458,20 @@ function renderKycListFromBackend(vendor) {
 // ==========================================================================
 async function fetchDashboardStatsFromBackend() {
   try {
-    const res = await fetch(`${API_BASE}/vendor/dashboard/stats?vendor_id=${currentVendorId}`);
+    const res = await fetch(`${API_BASE}/vendor/dashboard/stats?vendor_id=${currentVendorId}`, {
+      headers: getAuthHeaders()
+    });
+    if (res.status === 401) return;
     const data = await res.json();
     if (data.stats) {
       const s = data.stats;
-      document.getElementById('kpiTotalOrders').innerText = s.totalOrders || 125;
-      document.getElementById('kpiTotalSales').innerText = `₹${(s.totalSales || 24680).toLocaleString('en-IN')}`;
-      document.getElementById('kpiTotalProducts').innerText = s.totalProducts || 32;
-      document.getElementById('kpiAvgRating').innerText = s.avgRating || 4.6;
+      document.getElementById('kpiTotalOrders').innerText = s.totalOrders ?? 0;
+      document.getElementById('kpiTotalSales').innerText = `₹${Number(s.totalSales || 0).toLocaleString('en-IN')}`;
+      document.getElementById('kpiTotalProducts').innerText = s.totalProducts ?? 0;
+      document.getElementById('kpiAvgRating').innerText = s.avgRating || '5.0';
 
       // Render chart
-      const chartVals = s.weeklyStats ? s.weeklyStats.map(w => w.completed || 20) : [22, 18, 25, 30, 28, 42, 38];
+      const chartVals = s.weeklyStats ? s.weeklyStats.map(w => w.completed || 0) : [0, 0, 0, 0, 0, 0, 0];
       renderChart(chartVals);
 
       // Render popular products
@@ -315,7 +536,9 @@ function renderPopularProducts(items) {
 // ==========================================================================
 async function fetchOrdersFromBackend() {
   try {
-    const res = await fetch(`${API_BASE}/vendor/orders?vendor_id=${currentVendorId}`);
+    const res = await fetch(`${API_BASE}/vendor/orders?vendor_id=${currentVendorId}`, {
+      headers: getAuthHeaders()
+    });
     const data = await res.json();
     if (data.orders) {
       ordersList = data.orders.map(o => ({
@@ -460,7 +683,9 @@ async function confirmRejectOrder() {
 // ==========================================================================
 async function fetchCatalogFromBackend() {
   try {
-    const res = await fetch(`${API_BASE}/vendor/products?vendor_id=${currentVendorId}`);
+    const res = await fetch(`${API_BASE}/vendor/products?vendor_id=${currentVendorId}`, {
+      headers: getAuthHeaders()
+    });
     const data = await res.json();
     if (data.products) {
       catalogProducts = data.products;
@@ -480,9 +705,13 @@ function renderCatalog() {
     return;
   }
 
-  tbody.innerHTML = catalogProducts.map(p => `
+  const safeSvgPlaceholder = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='8' fill='%23EFF6FF'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='22'%3E🍲%3C/text%3E%3C/svg%3E";
+
+  tbody.innerHTML = catalogProducts.map(p => {
+    const safeImg = p.image_url || p.imageUrl || ('https://image.pollinations.ai/prompt/' + encodeURIComponent('fresh delicious ' + (p.name || 'food item')) + '?width=200&height=200&nologo=true');
+    return `
     <tr>
-      <td><img src="${p.image_url || p.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=200&q=80'}" style="width:48px; height:48px; border-radius:8px; object-fit:cover;" /></td>
+      <td><img src="${safeImg}" onerror="this.onerror=null; this.src='${safeSvgPlaceholder}';" style="width:48px; height:48px; border-radius:8px; object-fit:cover; border:1px solid #E2E8F0;" /></td>
       <td><strong>${p.name}</strong></td>
       <td>₹${p.price}</td>
       <td style="font-weight:700; color:var(--primary-orange);">₹${p.discount_price || p.discount || p.price}</td>
@@ -502,14 +731,15 @@ function renderCatalog() {
         <button class="btn btn-sm" style="background:#FEE2E2; color:var(--danger-red); margin-left:4px;" onclick="deleteProductFromBackend(${p.id})">Delete</button>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 async function toggleProductAvailabilityInBackend(productId, isAvailable) {
   try {
     await fetch(`${API_BASE}/vendor/products/${productId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ is_available: isAvailable ? 1 : 0 })
     });
     console.log(`✅ Product #${productId} availability updated to ${isAvailable}`);
@@ -521,7 +751,10 @@ async function toggleProductAvailabilityInBackend(productId, isAvailable) {
 async function deleteProductFromBackend(productId) {
   if (!confirm('Are you sure you want to remove this product from backend catalog?')) return;
   try {
-    const res = await fetch(`${API_BASE}/vendor/products/${productId}`, { method: 'DELETE' });
+    const res = await fetch(`${API_BASE}/vendor/products/${productId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
     const data = await res.json();
     if (data.success) {
       await fetchCatalogFromBackend();
@@ -558,7 +791,7 @@ async function submitNewProductToBackend() {
   try {
     const res = await fetch(`${API_BASE}/vendor/products`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({
         vendor_id: currentVendorId,
         category_id: 1,
@@ -604,7 +837,7 @@ async function submitNewOrderToBackend() {
   try {
     const res = await fetch(`${API_BASE}/vendor/orders`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({
         vendor_id: currentVendorId,
         customer_name: name,
@@ -630,14 +863,21 @@ async function submitNewOrderToBackend() {
 // ==========================================================================
 async function fetchEarningsFromBackend() {
   try {
-    const res = await fetch(`${API_BASE}/vendor/earnings?vendor_id=${currentVendorId}`);
+    const res = await fetch(`${API_BASE}/vendor/earnings?vendor_id=${currentVendorId}`, {
+      headers: getAuthHeaders()
+    });
     const data = await res.json();
     if (data.earnings) {
       const e = data.earnings;
-      document.getElementById('earningsHeroNet').innerText = `₹${(e.netEarnings || 66682).toLocaleString('en-IN')}`;
-      document.getElementById('earningsHeroGross').innerText = `₹${(e.totalSales || 78450).toLocaleString('en-IN')}`;
-      document.getElementById('earningsHeroCommission').innerText = `-₹${(e.commissionDeduction || 11768).toLocaleString('en-IN')}`;
-      document.getElementById('earningsHeroOrders').innerText = `${e.completedOrders || 280} Orders`;
+      const net = Number(e.netEarnings ?? e.net_earnings ?? 0);
+      const gross = Number(e.totalSales ?? e.total_sales ?? 0);
+      const comm = Number(e.commissionDeduction ?? e.commission ?? 0);
+      const orders = Number(e.completedOrders ?? e.orders ?? 0);
+
+      document.getElementById('earningsHeroNet').innerText = `₹${net.toLocaleString('en-IN')}`;
+      document.getElementById('earningsHeroGross').innerText = `₹${gross.toLocaleString('en-IN')}`;
+      document.getElementById('earningsHeroCommission').innerText = `-₹${comm.toLocaleString('en-IN')}`;
+      document.getElementById('earningsHeroOrders').innerText = `${orders} Orders`;
     }
   } catch (err) {
     console.error('fetchEarningsFromBackend error:', err);

@@ -18,9 +18,11 @@ router.patch('/customers/:id/status', adminController.toggleCustomerStatus);
 // 4.3 Vendor Management
 router.get('/vendors', adminController.getAllVendors);
 router.patch('/vendors/:id/approval', adminController.updateVendorApproval);
+router.put('/vendors/:id/approval', adminController.updateVendorApproval);
 router.patch('/vendors/:id/status', adminController.updateVendorApproval);
 router.post('/vendors/:id/status', adminController.updateVendorApproval);
 router.patch('/vendors/:id/documents', adminController.updateVendorDocumentStatus);
+router.put('/vendors/:id/documents', adminController.updateVendorDocumentStatus);
 
 // 4.4 Delivery Boy Management
 router.get('/delivery-boys', adminController.getAllDeliveryBoys);

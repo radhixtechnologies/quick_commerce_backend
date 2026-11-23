@@ -212,12 +212,32 @@ async function updateVendorApproval(req, res) {
         'UPDATE vendors SET approval_status = ?, rejection_reason = ?, commission_rate = COALESCE(?, commission_rate) WHERE id = ?',
         [approval_status, rejection_reason || null, commission_rate || null, id]
       );
+      if (approval_status === 'approved') {
+        const rows = await db.query('SELECT document_verification_json FROM vendors WHERE id = ?', [id]);
+        if (rows.length > 0) {
+          let verif = rows[0].document_verification_json || {};
+          if (typeof verif === 'string') {
+            try { verif = JSON.parse(verif); } catch (e) { verif = {}; }
+          }
+          for (const k of Object.keys(verif)) {
+            if (verif[k] === 'pending' || !verif[k]) verif[k] = 'approved';
+          }
+          await db.query('UPDATE vendors SET document_verification_json = ? WHERE id = ?', [JSON.stringify(verif), id]);
+        }
+      }
     } else {
       const v = db.memoryStore.vendors.find((item) => item.id == id);
       if (v) {
         v.approval_status = approval_status;
         if (rejection_reason) v.rejection_reason = rejection_reason;
         if (commission_rate) v.commission_rate = parseFloat(commission_rate);
+        if (approval_status === 'approved' && v.document_verification_json) {
+          for (const k of Object.keys(v.document_verification_json)) {
+            if (v.document_verification_json[k] === 'pending' || !v.document_verification_json[k]) {
+              v.document_verification_json[k] = 'approved';
+            }
+          }
+        }
       }
     }
 

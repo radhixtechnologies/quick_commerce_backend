@@ -727,3 +727,218 @@ input:checked + .slider:before {
   }
   .kpi-grid { grid-template-columns: 1fr; }
 }
+
+/* ==========================================================================
+   VENDOR AUTH OVERLAY & LOGIN SCREEN
+   ========================================================================== */
+.vendor-auth-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 15, 8, 0.92);
+  backdrop-filter: blur(8px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.vendor-auth-card {
+  background: #FFFFFF;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  animation: authSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes authSlideUp {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.auth-header {
+  background: linear-gradient(135deg, var(--espresso-brown) 0%, #2A170B 100%);
+  padding: 26px 24px 20px;
+  text-align: center;
+  color: white;
+}
+
+.auth-brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(249, 115, 22, 0.2);
+  border: 1px solid rgba(249, 115, 22, 0.4);
+  color: #FFA366;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.auth-header h2 {
+  font-size: 21px;
+  font-weight: 800;
+  color: #FFFFFF;
+  margin: 0 0 4px;
+}
+
+.auth-header p {
+  font-size: 13px;
+  color: #D1D5DB;
+  margin: 0;
+}
+
+.auth-nav-tabs {
+  display: flex;
+  background: #F8FAFC;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.auth-nav-tab {
+  flex: 1;
+  padding: 13px 16px;
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.auth-nav-tab.active {
+  color: var(--primary-orange);
+  border-bottom-color: var(--primary-orange);
+  background: #FFFFFF;
+}
+
+.auth-body {
+  padding: 22px 24px;
+}
+
+.auth-form-group {
+  margin-bottom: 15px;
+}
+
+.auth-form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--espresso-brown);
+  margin-bottom: 6px;
+}
+
+.auth-form-control {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  font-size: 13.5px;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.auth-form-control:focus {
+  outline: none;
+  border-color: var(--primary-orange);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+}
+
+.auth-submit-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary-orange);
+  color: white;
+  border: none;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.auth-submit-btn:hover {
+  background: var(--orange-hover);
+}
+
+.auth-alert {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 14px;
+  display: none;
+}
+
+.auth-alert.error {
+  display: block;
+  background: #FEE2E2;
+  color: #DC2626;
+  border: 1px solid #FCA5A5;
+}
+
+.auth-alert.success {
+  display: block;
+  background: #DCFCE7;
+  color: #16A34A;
+  border: 1px solid #86EFAC;
+}
+
+.vendor-logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FECACA;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.vendor-logout-btn:hover {
+  background: #DC2626;
+  color: white;
+  border-color: #DC2626;
+}
+
+.sidebar-logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: rgba(220, 38, 38, 0.14);
+  color: #F87171;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 8px;
+}
+
+.sidebar-logout-btn:hover {
+  background: #DC2626;
+  color: white;
+}

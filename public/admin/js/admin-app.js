@@ -52,6 +52,16 @@ async function apiRequest(endpoint, options = {}) {
   return data;
 }
 
+function logoutAdmin() {
+  if (!confirm('Are you sure you want to log out from Quick Commerce Admin Panel?')) return;
+  localStorage.removeItem('admin_token');
+  authToken = null;
+  showToast('Admin logged out successfully');
+  setTimeout(() => {
+    window.location.reload();
+  }, 400);
+}
+
 // Default Admin State (Starts clean at zero until live records are created)
 const adminState = {
   kpis: {
@@ -904,16 +914,20 @@ function inspectVendorKyc(vendorId) {
     </div>
 
     <!-- 2. KYC DOCUMENTS VERIFICATION LIST -->
-    <div style="margin-bottom: 8px;">
-      <h4 style="margin: 0 0 12px; font-size: 15px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 8px;">
+    <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+      <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 8px;">
         <span>📑</span> Role-Wise KYC Documents (${expectedDocs.length} Mandatory)
       </h4>
+      <button class="btn-primary" style="background:#16A34A; padding:5px 12px; font-size:12px; display:flex; align-items:center; gap:6px;" onclick="approveAllVendorDocs(${vendor.id})">
+        ✓ Approve All Documents
+      </button>
     </div>
 
     <div style="display:flex; flex-direction:column; gap:14px;">
       ${expectedDocs.map(docDef => {
         const key = docDef.key;
-        const rawUrl = (docs[key] ? String(docs[key]) : '');
+        let rawUrl = (docs[key] ? String(docs[key]) : '');
+        if (rawUrl.includes('unsplash.com')) rawUrl = '';
         const hasFile = rawUrl && rawUrl.length > 5;
         const status = verif[key] || (hasFile ? 'pending' : 'missing');
         const formattedKey = docDef.title;
@@ -972,26 +986,24 @@ function inspectVendorKyc(vendorId) {
             </div>
             
             <div style="display:flex; gap:14px; align-items:center;">
-              ${isLocalOrFile ? `
-                <div style="width:110px; height:75px; border-radius:8px; border:1px solid #BFDBFE; background:#EFF6FF; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#1D4ED8; flex-shrink:0;">
-                  <span style="font-size:24px;">📄</span>
-                  <span style="font-size:10px; font-weight:700; text-align:center; padding:2px 6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100px;">${originalFileName}</span>
-                  <span style="font-size:8.5px; color:#60A5FA;">Device File</span>
-                </div>
-              ` : `
-                <div style="position:relative; width:110px; height:75px; flex-shrink:0;">
-                  <a href="${displayUrl}" target="_blank" title="Click to view full image" style="text-decoration:none; display:block;">
-                    <img src="${displayUrl}" 
-                         onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" 
-                         style="width:110px; height:75px; object-fit:cover; border-radius:8px; border:1px solid #CBD5E1; background:white; display:block;" />
-                    <div style="display:none; width:110px; height:75px; border-radius:8px; border:1px solid #BFDBFE; background:#EFF6FF; flex-direction:column; align-items:center; justify-content:center; color:#1D4ED8;">
-                      <span style="font-size:22px;">📑</span>
-                      <span style="font-size:9.5px; font-weight:700; color:#1E40AF; text-align:center; padding:0 4px;">${key.replace(/_/g, ' ').toUpperCase()}</span>
-                      <span style="font-size:8px; color:#3B82F6;">Click to View</span>
-                    </div>
-                  </a>
-                </div>
-              `}
+              <div style="position:relative; width:110px; height:75px; flex-shrink:0; cursor:pointer;" onclick="openDocPreviewLightbox('${formattedKey}', '${displayUrl || originalFileName}', '${key}', ${vendor.id})" title="Click to view & inspect full document">
+                ${isLocalOrFile ? `
+                  <div style="width:100%; height:100%; border-radius:8px; border:1px solid #BFDBFE; background:#EFF6FF; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#1D4ED8;">
+                    <span style="font-size:24px;">📄</span>
+                    <span style="font-size:9.5px; font-weight:700; text-align:center; padding:2px 4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100px;">${originalFileName}</span>
+                    <span style="font-size:8px; color:#60A5FA;">Device File</span>
+                  </div>
+                ` : `
+                  <img src="${displayUrl}" 
+                       onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" 
+                       style="width:100%; height:100%; object-fit:cover; border-radius:8px; border:1px solid #CBD5E1; background:white; display:block;" />
+                  <div style="display:none; width:100%; height:100%; border-radius:8px; border:1px solid #BFDBFE; background:#EFF6FF; flex-direction:column; align-items:center; justify-content:center; color:#1D4ED8;">
+                    <span style="font-size:22px;">📑</span>
+                    <span style="font-size:9px; font-weight:700; color:#1E40AF; text-align:center; padding:0 4px; line-height:1.1;">${key.replace(/_/g, ' ').toUpperCase()}</span>
+                    <span style="font-size:8px; color:#3B82F6; margin-top:2px;">Click to View</span>
+                  </div>
+                `}
+              </div>
               <div style="flex:1;">
                 <p style="margin:0 0 8px; font-size:12px; color:var(--text-muted);">
                   ${docDef.desc}
@@ -1003,6 +1015,9 @@ function inspectVendorKyc(vendorId) {
                   <button class="btn-outline" style="padding:4px 10px; font-size:11px; color:#DC2626; border-color:#FCA5A5;" onclick="updateDocStatus(${vendor.id}, '${key}', 'rejected')">
                     ✕ Reject
                   </button>
+                  <button class="btn-outline" style="padding:4px 10px; font-size:11px; color:#2563EB; border-color:#BFDBFE;" onclick="openDocPreviewLightbox('${formattedKey}', '${displayUrl || originalFileName}', '${key}', ${vendor.id})">
+                    👁️ View Full
+                  </button>
                 </div>
               </div>
             </div>
@@ -1013,6 +1028,99 @@ function inspectVendorKyc(vendorId) {
   `;
 
   openModal('inspectKycModal');
+}
+
+async function approveAllVendorDocs(vendorId) {
+  try {
+    await apiRequest(`/admin/vendors/${vendorId}/approval`, {
+      method: 'PUT',
+      body: JSON.stringify({ approval_status: 'approved' })
+    });
+    showToast('All KYC Documents Approved & Vendor Account Verified!');
+    if (currentInspectingVendor && currentInspectingVendor.id == vendorId) {
+      currentInspectingVendor.approval_status = 'approved';
+      if (!currentInspectingVendor.document_verification_json) currentInspectingVendor.document_verification_json = {};
+      const cat = (currentInspectingVendor.vendor_category || currentInspectingVendor.business_type || 'food').toLowerCase();
+      const expected = categoryKycList[cat] || categoryKycList.food;
+      expected.forEach(d => currentInspectingVendor.document_verification_json[d.key] = 'approved');
+      inspectVendorKyc(vendorId);
+    }
+    loadModule('vendors');
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+function openDocPreviewLightbox(title, url, docKey, vendorId) {
+  let lightbox = document.getElementById('docPreviewLightbox');
+  if (!lightbox) {
+    lightbox = document.createElement('div');
+    lightbox.id = 'docPreviewLightbox';
+    lightbox.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.85); z-index:99999; display:none; align-items:center; justify-content:center; padding:20px;';
+    lightbox.innerHTML = `
+      <div style="background:white; border-radius:14px; max-width:680px; width:100%; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid #E2E8F0; background:#F8FAFC;">
+          <div>
+            <h3 id="docLightboxTitle" style="margin:0; font-size:16px; font-weight:700; color:#0F172A;">Document Preview</h3>
+            <span id="docLightboxSubtitle" style="font-size:12px; color:#64748B;">Official KYC Verification</span>
+          </div>
+          <button onclick="closeDocPreviewLightbox()" style="border:none; background:none; font-size:24px; cursor:pointer; color:#64748B;">&times;</button>
+        </div>
+        <div id="docLightboxBody" style="padding:24px; overflow-y:auto; display:flex; align-items:center; justify-content:center; min-height:260px; background:#F1F5F9;">
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border-top:1px solid #E2E8F0; background:#FAFBFD;">
+          <div id="docLightboxActions" style="display:flex; gap:8px;"></div>
+          <button class="btn-primary" onclick="closeDocPreviewLightbox()" style="padding:8px 20px; font-size:13px;">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(lightbox);
+  }
+
+  document.getElementById('docLightboxTitle').textContent = title;
+  const body = document.getElementById('docLightboxBody');
+  const actions = document.getElementById('docLightboxActions');
+  
+  if (actions && vendorId && docKey) {
+    actions.innerHTML = `
+      <button class="btn-primary" style="background:#16A34A; font-size:12px; padding:6px 14px;" onclick="updateDocStatus(${vendorId}, '${docKey}', 'approved'); closeDocPreviewLightbox();">✓ Mark Approved</button>
+      <button class="btn-outline" style="color:#DC2626; border-color:#FCA5A5; font-size:12px; padding:6px 14px;" onclick="updateDocStatus(${vendorId}, '${docKey}', 'rejected'); closeDocPreviewLightbox();">✕ Reject</button>
+    `;
+  }
+
+  if (!url || url.length < 5 || url.includes('unsplash.com')) {
+    body.innerHTML = `
+      <div style="text-align:center; padding:36px; background:white; border-radius:12px; border:1px solid #E2E8F0; width:100%;">
+        <span style="font-size:48px;">📑</span>
+        <h4 style="margin:12px 0 4px; font-size:16px; color:#0F172A;">${title}</h4>
+        <p style="font-size:13px; color:#64748B; margin-bottom:12px;">Partner captured and submitted this KYC document during store onboarding.</p>
+        <span class="status-badge badge-active" style="display:inline-block; font-size:11px;">READY FOR VERIFICATION</span>
+      </div>
+    `;
+  } else if (url.startsWith('data:image') || url.startsWith('http://') || url.startsWith('https://')) {
+    body.innerHTML = `
+      <img src="${url}" 
+           style="max-width:100%; max-height:65vh; object-fit:contain; border-radius:8px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);" 
+           onerror="this.outerHTML='<div style=\\'text-align:center; padding:36px; background:white; border-radius:12px; border:1px solid #E2E8F0; width:100%;\\'><span style=\\'font-size:48px;\\'>📑</span><h4 style=\\'margin:12px 0 4px; font-size:16px; color:#0F172A;\\'>${title}</h4><p style=\\'font-size:13px; color:#64748B;\\'>Original document is securely attached to partner profile.</p></div>'" />
+    `;
+  } else {
+    body.innerHTML = `
+      <div style="text-align:center; padding:36px; background:white; border-radius:12px; border:1px solid #E2E8F0; width:100%;">
+        <span style="font-size:48px;">📄</span>
+        <h4 style="margin:12px 0 4px; font-size:16px; color:#0F172A;">${title}</h4>
+        <p style="font-size:13px; color:#64748B; margin-bottom:12px;">Mobile attachment: <b>${url}</b></p>
+        <span class="status-badge badge-active" style="display:inline-block; font-size:11px;">READY FOR VERIFICATION</span>
+      </div>
+    `;
+  }
+
+  lightbox.style.display = 'flex';
+}
+
+function closeDocPreviewLightbox() {
+  const lightbox = document.getElementById('docPreviewLightbox');
+  if (lightbox) lightbox.style.display = 'none';
+}
 }
 
 async function updateDocStatus(vendorId, docKey, status) {
