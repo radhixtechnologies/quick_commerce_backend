@@ -392,19 +392,63 @@ async function loginVendor(req, res) {
 // 5. VENDOR PROFILE & LIVE STATUS TOGGLE
 async function getProfile(req, res) {
   try {
-    const vendorId = req.user?.vendorId || req.query.vendor_id || 1;
+    let vendorId = req.query.vendor_id;
+    if (!vendorId && req.headers.authorization) {
+      try {
+        const authHeader = req.headers.authorization;
+        const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
+        const decoded = jwt.verify(token, JWT_SECRET);
+        vendorId = decoded.vendorId;
+      } catch (_) {}
+    }
+    if (!vendorId && req.user?.vendorId) {
+      vendorId = req.user.vendorId;
+    }
+
     let vendor = null;
 
     if (db.isConnected()) {
-      const rows = await db.query('SELECT * FROM vendors WHERE id = ?', [vendorId]);
-      if (rows.length > 0) vendor = rows[0];
+      if (vendorId) {
+        const rows = await db.query('SELECT * FROM vendors WHERE id = ?', [vendorId]);
+        if (rows.length > 0) vendor = rows[0];
+      } else if (req.query.email || req.query.phone) {
+        const rows = await db.query('SELECT * FROM vendors WHERE email = ? OR phone = ? LIMIT 1', [req.query.email, req.query.phone]);
+        if (rows.length > 0) vendor = rows[0];
+      }
     } else {
-      vendor = db.memoryStore.vendors.find((v) => v.id == vendorId) || db.memoryStore.vendors[0];
+      if (vendorId) {
+        vendor = db.memoryStore.vendors.find((v) => v.id == vendorId);
+      } else if (req.query.email || req.query.phone) {
+        vendor = db.memoryStore.vendors.find((v) => v.email === req.query.email || v.phone === req.query.phone);
+      }
+      if (!vendor) {
+        vendor = db.memoryStore.vendors[0];
+      }
     }
 
     if (!vendor) return res.status(404).json({ success: false, message: 'Vendor profile not found' });
 
-    res.json({ success: true, vendor });
+    res.json({
+      success: true,
+      vendor: {
+        id: vendor.id,
+        business_name: vendor.business_name,
+        vendor_category: vendor.vendor_category || vendor.business_type,
+        business_type: vendor.business_type,
+        email: vendor.email,
+        phone: vendor.phone,
+        address: vendor.address,
+        is_open: vendor.is_open,
+        is_otp_verified: vendor.is_otp_verified,
+        approval_status: vendor.approval_status || 'pending',
+        rejection_reason: vendor.rejection_reason || null,
+        rating: vendor.rating || 5.0,
+        commission_rate: vendor.commission_rate || 15.0,
+        documents: vendor.documents_json,
+        document_verification: vendor.document_verification_json,
+        bank_details: vendor.bank_details_json
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

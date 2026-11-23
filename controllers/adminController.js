@@ -204,6 +204,22 @@ async function updateVendorApproval(req, res) {
         if (commission_rate) v.commission_rate = parseFloat(commission_rate);
       }
     }
+
+    // Real-time Socket.IO notification to the vendor app
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`vendor_${id}`).emit('vendor_status_updated', {
+        vendorId: parseInt(id),
+        approval_status,
+        rejection_reason: rejection_reason || null
+      });
+      io.emit('vendor_status_updated', {
+        vendorId: parseInt(id),
+        approval_status,
+        rejection_reason: rejection_reason || null
+      });
+    }
+
     res.json({ success: true, message: `Vendor approval status set to ${approval_status}` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
