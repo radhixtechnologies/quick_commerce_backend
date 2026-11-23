@@ -891,10 +891,10 @@ function inspectVendorKyc(vendorId) {
         const status = verif[key] || 'pending';
         const formattedKey = key.replace(/_/g, ' ').toUpperCase();
 
-        // Calculate clean display URL that never breaks in browser
-        let displayUrl = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80';
+        // Calculate clean display preview that never shows a broken icon
         let isLocalOrFile = false;
         let originalFileName = '';
+        let displayUrl = '';
 
         if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:image')) {
           displayUrl = rawUrl;
@@ -903,6 +903,8 @@ function inspectVendorKyc(vendorId) {
         } else if (rawUrl.length > 0) {
           isLocalOrFile = true;
           originalFileName = rawUrl.split(/[\\/]/).pop() || 'document.jpg';
+        } else {
+          displayUrl = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80';
         }
 
         return `
@@ -910,7 +912,7 @@ function inspectVendorKyc(vendorId) {
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
               <div>
                 <span style="font-size:13.5px; font-weight:700; color:var(--text-dark);">${formattedKey}</span>
-                ${isLocalOrFile ? `<span style="display:block; font-size:11px; color:#64748B; margin-top:2px;">📁 Device File: <b>${originalFileName}</b></span>` : ''}
+                ${isLocalOrFile ? `<span style="display:block; font-size:11px; color:#2563EB; margin-top:2px; font-weight:600;">📱 Mobile Upload: ${originalFileName}</span>` : ''}
               </div>
               <span class="status-badge ${status === 'approved' ? 'badge-active' : (status === 'rejected' ? 'badge-cancelled' : 'badge-pending')}">
                 ${status.toUpperCase()}
@@ -918,14 +920,28 @@ function inspectVendorKyc(vendorId) {
             </div>
             
             <div style="display:flex; gap:14px; align-items:center;">
-              <a href="${displayUrl}" target="_blank" title="Click to view full size">
-                <img src="${displayUrl}" 
-                     onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80';" 
-                     style="width:110px; height:75px; object-fit:cover; border-radius:8px; border:1px solid #CBD5E1; background:white;" />
-              </a>
+              ${isLocalOrFile ? `
+                <div style="width:110px; height:75px; border-radius:8px; border:1px solid #BFDBFE; background:#EFF6FF; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#1D4ED8; flex-shrink:0;">
+                  <span style="font-size:24px;">📄</span>
+                  <span style="font-size:10px; font-weight:700; text-align:center; padding:2px 6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100px;">${originalFileName}</span>
+                  <span style="font-size:8.5px; color:#60A5FA;">Device File</span>
+                </div>
+              ` : `
+                <div style="position:relative; width:110px; height:75px; flex-shrink:0;">
+                  <a href="${displayUrl}" target="_blank" title="Click to view full size">
+                    <img src="${displayUrl}" 
+                         onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" 
+                         style="width:110px; height:75px; object-fit:cover; border-radius:8px; border:1px solid #CBD5E1; background:white; display:block;" />
+                  </a>
+                  <div style="display:none; width:110px; height:75px; border-radius:8px; border:1px solid #CBD5E1; background:#F1F5F9; flex-direction:column; align-items:center; justify-content:center; color:#64748B;">
+                    <span style="font-size:22px;">📑</span>
+                    <span style="font-size:9.5px; font-weight:600;">Document</span>
+                  </div>
+                </div>
+              `}
               <div style="flex:1;">
                 <p style="margin:0 0 8px; font-size:12px; color:var(--text-muted);">
-                  Uploaded document for verification. Inspect clarity and validity.
+                  ${isLocalOrFile ? 'Document captured & attached on device. Ready for admin verification.' : 'Uploaded document for verification. Inspect clarity and validity.'}
                 </p>
                 <div style="display:flex; gap:8px;">
                   <button class="btn-primary" style="padding:4px 10px; font-size:11px; background:#16A34A;" onclick="updateDocStatus(${vendor.id}, '${key}', 'approved')">
