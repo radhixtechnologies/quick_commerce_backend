@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel - Quick Commerce Multi-Vendor Platform</title>
+  
+  <!-- Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js & Socket.IO Client -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  
+  <!-- Production Admin CSS -->
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+
+  <!-- FIXED LEFT NAVIGATION SIDEBAR (Deep Navy #0F2942) -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-icon">⚡</div>
+      <div>
+        <h2 style="line-height:1.2;">Admin Panel</h2>
+        <span class="role-badge">Super Admin</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">CORE OPERATIONS</div>
+      <a class="nav-item active" data-module="dashboard">
+        <span class="icon">📊</span>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" data-module="customers">
+        <span class="icon">👥</span>
+        <span>Customers</span>
+      </a>
+      <a class="nav-item" data-module="vendors">
+        <span class="icon">🏬</span>
+        <span>Vendors</span>
+      </a>
+      <a class="nav-item" data-module="delivery-boys">
+        <span class="icon">🛵</span>
+        <span>Delivery Boys</span>
+      </a>
+
+      <div class="nav-section-title">CATALOG & ORDERS</div>
+      <a class="nav-item" data-module="categories">
+        <span class="icon">🗂️</span>
+        <span>Categories</span>
+      </a>
+      <a class="nav-item" data-module="products">
+        <span class="icon">📦</span>
+        <span>Products</span>
+      </a>
+      <a class="nav-item" data-module="orders">
+        <span class="icon">🛒</span>
+        <span>Orders</span>
+        <span class="badge">12</span>
+      </a>
+      <a class="nav-item" data-module="delivery-management">
+        <span class="icon">📍</span>
+        <span>Delivery & Slabs</span>
+      </a>
+      <a class="nav-item" data-module="commission">
+        <span class="icon">💰</span>
+        <span>Commission</span>
+      </a>
+
+      <div class="nav-section-title">FINANCE & GROWTH</div>
+      <a class="nav-item" data-module="payments">
+        <span class="icon">💳</span>
+        <span>Payment & COD</span>
+      </a>
+      <a class="nav-item" data-module="coupons">
+        <span class="icon">🏷️</span>
+        <span>Offers & Coupons</span>
+      </a>
+      <a class="nav-item" data-module="banners">
+        <span class="icon">🖼️</span>
+        <span>Banners</span>
+      </a>
+      <a class="nav-item" data-module="notifications">
+        <span class="icon">🔔</span>
+        <span>Notifications</span>
+      </a>
+      <a class="nav-item" data-module="reports">
+        <span class="icon">📈</span>
+        <span>Reports (CSV)</span>
+      </a>
+
+      <div class="nav-section-title">SUPPORT & SETTINGS</div>
+      <a class="nav-item" data-module="reviews">
+        <span class="icon">⭐</span>
+        <span>Reviews & Ratings</span>
+      </a>
+      <a class="nav-item" data-module="cms">
+        <span class="icon">📄</span>
+        <span>CMS / Pages</span>
+      </a>
+      <a class="nav-item" data-module="settings">
+        <span class="icon">⚙️</span>
+        <span>Settings</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-mini-card">
+        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="Admin Avatar" />
+        <div class="user-mini-info">
+          <h4>Administrator</h4>
+          <p>Super Admin</p>
+        </div>
+      </div>
+      <button class="icon-btn" style="color:white; background:transparent; border:none;" title="Logout" onclick="alert('Session saved')">🚪</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CANVAS (Off-White #F6F8FA) -->
+  <main class="main-content">
+    
+    <!-- TOP STICKY BAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 id="pageTitle">Dashboard Overview</h1>
+        <p id="pageDesc">Here's what's happening with your platform today!</p>
+      </div>
+      <div class="topbar-right">
+        <!-- Live Socket.IO Status -->
+        <div class="socket-status-pill" id="socketStatus">
+          <span class="socket-dot"></span> Live Sync Active
+        </div>
+
+        <button class="icon-btn" title="Notifications" onclick="loadModule('notifications')">
+          🔔
+          <span class="badge-dot"></span>
+        </button>
+
+        <div style="display:flex; align-items:center; gap:8px;">
+          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" style="width:34px; height:34px; border-radius:50%;" />
+          <span style="font-size:13.5px; font-weight:700; color:var(--navy-dark)">Admin</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- DYNAMIC MODULE CONTENT -->
+    <div class="page-container" id="moduleContainer">
+      <!-- Injected by admin-app.js -->
+    </div>
+
+  </main>
+
+  <!-- MODAL: ORDER STATUS CHANGE -->
+  <div class="modal-overlay" id="statusModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Manage Order Status: <span id="modalOrderCode">#ORD1256</span></h3>
+        <button class="modal-close-btn" onclick="closeModal('statusModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="modalOrderId" value="" />
+        <div class="form-group">
+          <label>Update Order Status</label>
+          <select class="form-control" id="orderStatusSelect">
+            <option value="accepted">Accepted (Vendor Confirmed)</option>
+            <option value="preparing">Preparing (Cooking / Packing)</option>
+            <option value="ready_for_pickup">Ready for Pickup (Auto-triggers Rider Dispatch)</option>
+            <option value="assigned">Assigned (Rider Connected)</option>
+            <option value="picked_up">Picked Up (Rider collected items)</option>
+            <option value="out_for_delivery">Out for Delivery (Rider en-route)</option>
+            <option value="delivered">Delivered (Handed to customer)</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Admin Note / Reason</label>
+          <textarea class="form-control" id="orderStatusNote" rows="3" placeholder="Optional audit note..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeModal('statusModal')">Cancel</button>
+        <button class="btn-primary" onclick="updateOrderStatusAction()">Save Status</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD DELIVERY SLAB -->
+  <div class="modal-overlay" id="addSlabModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Add Distance-Based Delivery Slab</h3>
+        <button class="modal-close-btn" onclick="closeModal('addSlabModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Slab Title</label>
+          <input type="text" class="form-control" id="slabTitle" placeholder="e.g. 10 - 15 KM (Special Zone)" />
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label>Min Distance (KM)</label>
+            <input type="number" step="0.1" class="form-control" id="slabMin" placeholder="10.1" />
+          </div>
+          <div class="form-group">
+            <label>Max Distance (KM)</label>
+            <input type="number" step="0.1" class="form-control" id="slabMax" placeholder="15.0" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Delivery Charge (₹)</label>
+          <input type="number" class="form-control" id="slabFee" placeholder="65" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeModal('addSlabModal')">Cancel</button>
+        <button class="btn-primary" onclick="saveSlabAction()">Add Slab</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: INSPECT ROLE-WISE KYC DOCUMENTS -->
+  <div class="modal-overlay" id="inspectKycModal">
+    <div class="modal-box" style="max-width:640px;">
+      <div class="modal-header">
+        <div>
+          <h3 id="kycModalVendorName" style="margin:0; font-size:16px;">Inspect Vendor KYC Documents</h3>
+          <p id="kycModalCategoryBadge" style="margin:2px 0 0; font-size:12px; color:var(--text-muted);"></p>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('inspectKycModal')">&times;</button>
+      </div>
+      <div class="modal-body" id="kycModalBody" style="max-height:60vh; overflow-y:auto;">
+        <!-- Rendered dynamically by admin-app.js -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeModal('inspectKycModal')">Close</button>
+        <button class="btn-primary" id="btnApproveAllDocs" onclick="approveCurrentVendorAction()">Approve Vendor Account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD CATEGORY -->
+  <div class="modal-overlay" id="addCategoryModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Add New Category</h3>
+        <button class="modal-close-btn" onclick="closeModal('addCategoryModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Category Name</label>
+          <input type="text" class="form-control" id="newCategoryName" placeholder="e.g. North Indian & Thalis" />
+        </div>
+        <div class="form-group">
+          <label>Module Type (Vertical)</label>
+          <select class="form-control" id="newCategoryModule">
+            <option value="food">🍔 Food (Restaurants, Cafes, Bakery)</option>
+            <option value="ecommerce">🛍️ E-commerce (Fashion, Electronics, Home)</option>
+            <option value="services">🛠️ Service Based (Urban Clap style)</option>
+            <option value="grocery">🥦 Grocery (Vegetables, Dairy, Staples)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Icon / Emoji</label>
+          <input type="text" class="form-control" id="newCategoryIcon" placeholder="e.g. 🍛, 📱, 🧹, 🥦" />
+        </div>
+        <div class="form-group">
+          <label>Description (Optional)</label>
+          <input type="text" class="form-control" id="newCategoryDesc" placeholder="Short description of this category..." />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeModal('addCategoryModal')">Cancel</button>
+        <button class="btn-primary" onclick="saveCategoryAction()">Save Category</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD SUBCATEGORY -->
+  <div class="modal-overlay" id="addSubcategoryModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Add New Subcategory</h3>
+        <button class="modal-close-btn" onclick="closeModal('addSubcategoryModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Parent Category</label>
+          <select class="form-control" id="newSubcatParentCategory">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Subcategory Name</label>
+          <input type="text" class="form-control" id="newSubcategoryName" placeholder="e.g. AC Foam Jet Servicing, Men Grooming, Exotic Herbs" />
+        </div>
+        <div class="form-group">
+          <label>Icon / Emoji (Optional)</label>
+          <input type="text" class="form-control" id="newSubcategoryIcon" placeholder="e.g. 🌿, ❄️, 👕, 🍕" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeModal('addSubcategoryModal')">Cancel</button>
+        <button class="btn-primary" onclick="saveSubcategoryAction()">Save Subcategory</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD PRODUCT -->
+  <div class="modal-overlay" id="addProductModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Add New Product / Menu Item</h3>
+        <button class="modal-close-btn" onclick="closeModal('addProductModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Product Name</label>
+          <input type="text" class="form-control" id="newProductName" placeholder="e.g. Farm Fresh Broccoli 500g" />
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label>Vendor</label>
+            <select class="form-control" id="newProductVendor">
+              <option value="1">Spice Hub (Restaurant)</option>
+              <option value="2">Fresh Mart (Grocery)</option>
+              <option value="3">Daily Needs (Local)</option>
+              <option value="4">Sweet Delights (Bakery)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Food Type</label>
+            <select class="form-control" id="newProductFoodType">
+              <option value="veg">🟢 Veg</option>
+              <option value="non_veg">🔴 Non-Veg</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label>Regular Price (₹)</label>
+            <input type="number" class="form-control" id="newProductPrice" placeholder="50" />
+          </div>
+          <div class="form-group">
+            <label>Discount Price (₹)</label>
+            <input type="number" class="form-control" id="newProductDiscountPrice" placeholder="42" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeModal('addProductModal')">Cancel</button>
+        <button class="btn-primary" onclick="saveProductAction()">Save Product</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CREATE COUPON -->
+  <div class="modal-overlay" id="addCouponModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Create Coupon / Offer</h3>
+        <button class="modal-close-btn" onclick="closeModal('addCouponModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Coupon Code (e.g. FLASH40)</label>
+          <input type="text" class="form-control" id="newCouponCode" placeholder="FLASH40" />
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label>Discount Type</label>
+            <select class="form-control" id="newCouponType">
+              <option value="percentage">Percentage (%)</option>
+              <option value="fixed">Fixed Amount (₹)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Discount Value</label>
+            <input type="number" class="form-control" id="newCouponValue" placeholder="40" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Minimum Order Amount (₹)</label>
+          <input type="number" class="form-control" id="newCouponMinOrder" placeholder="199" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeModal('addCouponModal')">Cancel</button>
+        <button class="btn-primary" onclick="saveCouponAction()">Save Coupon</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP SCRIPT -->
+  <script src="js/admin-app.js"></script>
+
+</body>
+</html>

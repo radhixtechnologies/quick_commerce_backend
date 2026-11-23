@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vendor Panel - Quick Commerce Multi-Category Hub</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Chart.js & Socket.IO Client -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Luxury 4-Color Vendor CSS -->
+  <link rel="stylesheet" href="css/vendor.css" />
+</head>
+<body>
+
+  <!-- FIXED LEFT NAVIGATION SIDEBAR (Rich Espresso Brown #3B2314) -->
+  <aside class="vendor-sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🏪</div>
+      <div>
+        <div class="brand-title">Vendor Panel</div>
+        <div class="brand-subtitle" id="activeVerticalPill">Food & Cafe</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="nav-link active" data-tab="dashboard">
+        <span>📊</span>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-link" data-tab="orders">
+        <span>📦</span>
+        <span>Orders</span>
+        <span class="badge" id="sidebarOrderBadge">3</span>
+      </a>
+      <a class="nav-link" data-tab="products">
+        <span>🏷️</span>
+        <span>Products & Catalog</span>
+      </a>
+      <a class="nav-link" data-tab="categories">
+        <span>📂</span>
+        <span>Categories & Menu</span>
+      </a>
+      <a class="nav-link" data-tab="ai-studio">
+        <span>✨</span>
+        <span>Gemini AI Studio</span>
+      </a>
+      <a class="nav-link" data-tab="offers">
+        <span>🎟️</span>
+        <span>Offers & Discounts</span>
+      </a>
+      <a class="nav-link" data-tab="profile">
+        <span>🏢</span>
+        <span>Business Profile</span>
+      </a>
+      <a class="nav-link" data-tab="earnings">
+        <span>💰</span>
+        <span>Earnings & Payouts</span>
+      </a>
+      <a class="nav-link" data-tab="reviews">
+        <span>⭐</span>
+        <span>Reviews & Ratings</span>
+      </a>
+      <a class="nav-link" data-tab="support">
+        <span>💬</span>
+        <span>AI Workflow Support</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="/admin/" class="admin-switch-btn" target="_blank">
+        <span>⚡ Switch to Admin Panel ↗</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="vendor-main">
+    <!-- Top Header -->
+    <header class="vendor-header">
+      <div class="header-left">
+        <div class="store-info">
+          <h3 id="storeHeaderTitle">Welcome, Spice Hub Restaurant</h3>
+          <p>Let's grow your business today!</p>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Live Open / Close Store Switch -->
+        <div class="store-status-toggle">
+          <span class="status-indicator">
+            <span class="status-dot" id="storeDot"></span>
+            <span id="storeStatusText" style="color:var(--success-green);">Open</span>
+          </span>
+          <label class="switch">
+            <input type="checkbox" id="storeStatusCheckbox" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- Category Store Switcher (Food, E-Commerce, Services, Grocery) -->
+        <select class="category-select-pill" id="vendorCategorySelect">
+          <option value="food">🍔 Food (Spice Hub Restaurant)</option>
+          <option value="ecommerce">🛍️ E-Commerce (Urban Trends)</option>
+          <option value="service_based">🛠️ Services (QuickFix Services)</option>
+          <option value="grocery">🥦 Grocery (Fresh Mart Supermarket)</option>
+        </select>
+
+        <!-- Profile Avatar Pill -->
+        <div class="vendor-avatar-pill">
+          <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=150&q=80" id="vendorAvatarImg" alt="Store Avatar" />
+          <span id="vendorOwnerName">Spice Hub</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- WORKSPACE BODY (Dynamically Loaded Tabs) -->
+    <div class="vendor-workspace" id="vendorWorkspace">
+
+      <!-- ========================================================
+           TAB 1: DASHBOARD (Exact Match to Slide 2.1 & 2.6)
+           ======================================================== -->
+      <div class="tab-pane active" id="tab-dashboard">
+        <!-- 4 KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon green">🛍️</div>
+            <div class="kpi-content">
+              <div class="kpi-title">Total Orders</div>
+              <div class="kpi-value" id="kpiTotalOrders">125</div>
+              <div class="kpi-trend">↑ 12% vs last week</div>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon orange">₹</div>
+            <div class="kpi-content">
+              <div class="kpi-title">Total Sales</div>
+              <div class="kpi-value" id="kpiTotalSales">₹24,680</div>
+              <div class="kpi-trend">↑ 18% revenue growth</div>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon blue">🏪</div>
+            <div class="kpi-content">
+              <div class="kpi-title">Total Products</div>
+              <div class="kpi-value" id="kpiTotalProducts">32</div>
+              <div class="kpi-trend">↑ 8% active listings</div>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon gold">⭐</div>
+            <div class="kpi-content">
+              <div class="kpi-title">Avg. Rating</div>
+              <div class="kpi-value" id="kpiAvgRating">4.6</div>
+              <div class="kpi-trend">↑ 5% positive reviews</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Middle Row: Order Statistics Chart + Popular Products -->
+        <div class="dashboard-grid">
+          <!-- Order Statistics Chart Card -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title">Order Statistics</div>
+              <select class="panel-select">
+                <option>This Week</option>
+                <option>Last Week</option>
+                <option>This Month</option>
+              </select>
+            </div>
+            <div style="height: 250px; position: relative;">
+              <canvas id="vendorOrderChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Popular Products Card -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title">Popular Products</div>
+              <a href="#" style="font-size:12px; color:var(--primary-orange); font-weight:700; text-decoration:none;">View All</a>
+            </div>
+            <div class="popular-products-list" id="popularProductsContainer">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Orders Table Card -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title">Recent Orders</div>
+            <button class="btn btn-primary btn-sm" onclick="showNewOrderModal()">+ New Custom Order</button>
+          </div>
+          <div class="table-container">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th># Order</th>
+                  <th>Customer</th>
+                  <th>Items</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Date & Time</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="recentOrdersTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================
+           TAB 2: ORDERS MANAGEMENT
+           ======================================================== -->
+      <div class="tab-pane" id="tab-orders" style="display:none;">
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title">Orders Management</div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-secondary btn-sm filter-order-btn active" onclick="filterOrders('all')">All</button>
+              <button class="btn btn-secondary btn-sm filter-order-btn" onclick="filterOrders('placed')">New (Placed)</button>
+              <button class="btn btn-secondary btn-sm filter-order-btn" onclick="filterOrders('preparing')">Preparing</button>
+              <button class="btn btn-secondary btn-sm filter-order-btn" onclick="filterOrders('ready_for_pickup')">Ready for Pickup</button>
+              <button class="btn btn-secondary btn-sm filter-order-btn" onclick="filterOrders('delivered')">Completed</button>
+              <button class="btn btn-secondary btn-sm filter-order-btn" onclick="filterOrders('cancelled')">Cancelled</button>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Order Code</th>
+                  <th>Customer</th>
+                  <th>Phone</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Payment</th>
+                  <th>Delivery OTP</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="allOrdersTableBody">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================
+           TAB 3: PRODUCTS & CATALOG + GEMINI AI STUDIO
+           ======================================================== -->
+      <div class="tab-pane" id="tab-products" style="display:none;">
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title">Product Catalog & Menu</div>
+            <div style="display:flex; gap:10px;">
+              <button class="btn btn-gold btn-sm" onclick="switchTab('ai-studio')">✨ Gemini AI Studio</button>
+              <button class="btn btn-primary btn-sm" onclick="openAddProductModal()">+ Add Product / Item</button>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Image</th>
+                  <th>Name</th>
+                  <th>Price</th>
+                  <th>Discount Price</th>
+                  <th>Stock</th>
+                  <th>AI Enhancements</th>
+                  <th>Availability</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="catalogTableBody">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================
+           TAB 4: GEMINI AI MEDIA STUDIO (PHOTO & VIDEO REELS)
+           ======================================================== -->
+      <div class="tab-pane" id="tab-ai-studio" style="display:none;">
+        <div class="panel-card" style="background: linear-gradient(135deg, #FFFDF8, #F0F9FF); border: 1.5px solid var(--bright-gold);">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:40px; height:40px; background:var(--royal-golden); border-radius:10px; display:flex; align-items:center; justify-content:center; color:white; font-size:20px;">✨</div>
+              <div>
+                <h3 style="color:var(--espresso-brown); font-size:18px; font-weight:800;">Gemini AI Media Studio</h3>
+                <p style="font-size:12px; color:var(--text-secondary);">Transform raw product photos into 4K studio photography & 10-second commercial promo video reels.</p>
+              </div>
+            </div>
+            <span class="badge" style="background:var(--gold-soft); color:var(--royal-golden); font-size:11px; padding:6px 12px; border:1px solid var(--bright-gold);">100 FREE CREDITS / MO</span>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:20px;">
+            <!-- Left: Input Controls -->
+            <div style="background:white; padding:18px; border-radius:12px; border:1px solid var(--border-color);">
+              <h4 style="font-size:14px; font-weight:800; color:var(--espresso-brown); margin-bottom:14px;">1. Product Details & Camera Upload</h4>
+              <div style="margin-bottom:12px;">
+                <label style="font-size:11px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Product Name</label>
+                <input type="text" id="aiStudioProductName" value="Margherita Wood-Fired Pizza" style="width:100%; padding:9px 12px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" />
+              </div>
+              <div style="margin-bottom:12px;">
+                <label style="font-size:11px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Raw Image URL or Snapshot</label>
+                <input type="text" id="aiStudioRawImage" value="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80" style="width:100%; padding:9px 12px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" />
+              </div>
+              <div style="margin-bottom:16px;">
+                <label style="font-size:11px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">AI Studio Photography Style Prompt</label>
+                <textarea id="aiStudioPrompt" rows="2" style="width:100%; padding:9px 12px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;">Warm cinematic lighting, dark rustic wooden table, steaming hot, fresh basil garnish, 4K crisp commercial advertisement.</textarea>
+              </div>
+
+              <div style="display:flex; gap:10px;">
+                <button class="btn btn-gold" id="btnAiGenerateImage" style="flex:1;" onclick="triggerAiImageGeneration()">
+                  <span>✨ Enhance to 4K Studio</span>
+                </button>
+                <button class="btn btn-sky" id="btnAiGenerateVideo" style="flex:1;" onclick="triggerAiVideoGeneration()">
+                  <span>🎬 Create 10s Promo Video</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Right: Live Output Previews -->
+            <div style="background:white; padding:18px; border-radius:12px; border:1px solid var(--border-color);">
+              <h4 style="font-size:14px; font-weight:800; color:var(--espresso-brown); margin-bottom:14px;">2. Studio Commercial Output</h4>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                  <span style="font-size:10px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">RAW SNAPSHOT</span>
+                  <img id="aiPreviewRaw" src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80" style="width:100%; height:140px; object-fit:cover; border-radius:8px; border:1px solid var(--border-color);" />
+                </div>
+                <div>
+                  <span style="font-size:10px; font-weight:700; color:var(--royal-golden); display:block; margin-bottom:4px;">✨ 4K GEMINI ENHANCED</span>
+                  <img id="aiPreviewEnhanced" src="https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80" style="width:100%; height:140px; object-fit:cover; border-radius:8px; border:1.5px solid var(--bright-gold);" />
+                </div>
+              </div>
+
+              <!-- Promo Video Reel Preview -->
+              <div style="margin-top:16px;">
+                <span style="font-size:10px; font-weight:700; color:var(--sky-blue); display:block; margin-bottom:4px;">🎬 PROMOTIONAL VIDEO REEL</span>
+                <div style="background:var(--espresso-brown); border-radius:8px; height:120px; display:flex; align-items:center; justify-content:center; color:white; position:relative; overflow:hidden;">
+                  <video id="aiPromoVideoPlayer" style="width:100%; height:100%; object-fit:cover;" controls poster="https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80">
+                    <source id="aiVideoSource" src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" type="video/mp4">
+                  </video>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================
+           TAB 5: EARNINGS & SETTLEMENTS (Slide 2.6)
+           ======================================================== -->
+      <div class="tab-pane" id="tab-earnings" style="display:none;">
+        <div class="panel-card" style="margin-bottom:20px; background:linear-gradient(135deg, var(--espresso-brown), var(--warm-brown)); color:white;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <span style="font-size:12px; color:var(--sky-blue-light); text-transform:uppercase; font-weight:700;">Earnings Summary (This Month)</span>
+              <h2 style="font-size:36px; font-weight:800; margin:6px 0; color:white;" id="earningsHeroNet">₹66,682</h2>
+              <span style="font-size:12px; color:#CBD5E1;">Net Payout to Bank (Scheduled: Every Monday 10:00 AM)</span>
+            </div>
+            <div style="text-align:right;">
+              <span class="badge" style="background:var(--bright-gold); color:var(--espresso-brown); font-size:12px; font-weight:800; padding:6px 14px;">AUTO-SETTLED</span>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-top:24px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.15);">
+            <div>
+              <div style="font-size:11px; color:#CBD5E1;">Total Gross Sales</div>
+              <div style="font-size:18px; font-weight:800; color:white;" id="earningsHeroGross">₹78,450</div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:#CBD5E1;">Platform Commission (15%)</div>
+              <div style="font-size:18px; font-weight:800; color:var(--bright-gold);" id="earningsHeroCommission">-₹11,768</div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:#CBD5E1;">Completed Orders</div>
+              <div style="font-size:18px; font-weight:800; color:white;" id="earningsHeroOrders">280 Orders</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title">Weekly Settlement History</div>
+          </div>
+          <div class="table-container">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Settlement ID</th>
+                  <th>Date</th>
+                  <th>Gross Amount</th>
+                  <th>Commission</th>
+                  <th>Net Disbursed</th>
+                  <th>UTR Reference</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>SETTL-8821</strong></td>
+                  <td>10 Sep 2026</td>
+                  <td>₹28,823</td>
+                  <td style="color:var(--danger-red);">-₹4,323</td>
+                  <td style="font-weight:800; color:var(--success-green);">₹24,500</td>
+                  <td><code>UTR829103982103</code></td>
+                  <td><span class="badge-status badge-delivered">Settled</span></td>
+                </tr>
+                <tr>
+                  <td><strong>SETTL-8819</strong></td>
+                  <td>03 Sep 2026</td>
+                  <td>₹23,352</td>
+                  <td style="color:var(--danger-red);">-₹3,502</td>
+                  <td style="font-weight:800; color:var(--success-green);">₹19,850</td>
+                  <td><code>UTR771920398112</code></td>
+                  <td><span class="badge-status badge-delivered">Settled</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================
+           TAB 6: BUSINESS PROFILE & KYC VERIFICATION
+           ======================================================== -->
+      <div class="tab-pane" id="tab-profile" style="display:none;">
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title">Business Profile & Operating Hours</div>
+            <button class="btn btn-primary btn-sm" onclick="alert('Profile details saved successfully!')">Save Changes</button>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+            <div>
+              <div style="margin-bottom:14px;">
+                <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Business / Store Name</label>
+                <input type="text" id="profBusinessName" value="Spice Hub Restaurant" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px;" />
+              </div>
+              <div style="margin-bottom:14px;">
+                <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Contact Phone</label>
+                <input type="text" id="profPhone" value="+91 98765 43210" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px;" />
+              </div>
+              <div style="margin-bottom:14px;">
+                <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Address</label>
+                <input type="text" id="profAddress" value="B-44, Sector 62, Noida, Uttar Pradesh" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px;" />
+              </div>
+            </div>
+            <div>
+              <h4 style="font-size:13px; font-weight:800; color:var(--espresso-brown); margin-bottom:10px;">Role-Wise KYC Documents</h4>
+              <div style="background:var(--scaffold-sky-bg); padding:14px; border-radius:8px; border:1px solid var(--border-color);" id="profileKycList">
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                  <span style="font-size:12px; font-weight:600;">1. FSSAI License: <code>FSSAI-8821903</code></span>
+                  <span style="color:var(--success-green); font-weight:700; font-size:11px;">✓ VERIFIED</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                  <span style="font-size:12px; font-weight:600;">2. GST Certificate: <code>07AAAAA0000A1Z5</code></span>
+                  <span style="color:var(--success-green); font-weight:700; font-size:11px;">✓ VERIFIED</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                  <span style="font-size:12px; font-weight:600;">3. Trade License: <code>TRADE-DL-49102</code></span>
+                  <span style="color:var(--success-green); font-weight:700; font-size:11px;">✓ VERIFIED</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- FLOATING AI WORKFLOW PARTNER WIDGET -->
+  <div class="ai-copilot-pill" onclick="openAiChatModal()">
+    <span class="stars">✨</span>
+    <span style="font-size:13px; font-weight:700;">AI Partner Assistant</span>
+  </div>
+
+  <!-- AI WORKFLOW SUPPORT MODAL -->
+  <div class="modal-overlay" id="aiSupportModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:18px;">✨</span>
+          <h3>AI Partner Workflow Assistant</h3>
+        </div>
+        <button style="border:none; background:none; font-size:20px; cursor:pointer;" onclick="closeAiChatModal()">✕</button>
+      </div>
+      <div class="modal-body" style="height: 380px; overflow-y: auto; display:flex; flex-direction:column; gap:12px;" id="aiChatHistory">
+        <div style="background:var(--scaffold-sky-bg); padding:12px 14px; border-radius:12px; font-size:13px; color:var(--text-primary); border:1px solid var(--border-color);">
+          <strong>Hello Partner! 👋</strong> I am your pre-trained Quick Commerce Assistant. Ask me anything about:
+          <ul style="margin:6px 0 0 16px; font-size:12px; color:var(--text-secondary);">
+            <li>Why Mobile OTP is mandatory ONLY for Service-Based vendors</li>
+            <li>Role-wise KYC documents required for your category</li>
+            <li>Order lifecycle (Accept → Prepare → Ready for Pickup)</li>
+            <li>Gemini AI 4K Product Studio & Video Reels</li>
+            <li>15% platform commission & payout schedules</li>
+          </ul>
+        </div>
+      </div>
+      <div style="padding:10px 18px; background:#FAFCFE; border-top:1px solid var(--border-color); display:flex; gap:6px; flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="sendQuickAiQuery('Why is OTP only for service based vendors?')">Why OTP for Services?</button>
+        <button class="btn btn-secondary btn-sm" onclick="sendQuickAiQuery('What KYC documents are required for my category?')">KYC Documents?</button>
+        <button class="btn btn-secondary btn-sm" onclick="sendQuickAiQuery('How to use Gemini AI Studio for 4K photos?')">Gemini AI Studio?</button>
+      </div>
+      <div class="modal-footer" style="padding:12px 18px;">
+        <input type="text" id="aiChatInput" placeholder="Type your question..." style="flex:1; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" onkeypress="if(event.key==='Enter') sendAiMessage()" />
+        <button class="btn btn-primary" onclick="sendAiMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REJECTION REASON MODAL (MANDATORY FOR AUDIT) -->
+  <div class="modal-overlay" id="rejectOrderModal">
+    <div class="modal-content" style="max-width:450px;">
+      <div class="modal-header">
+        <h3 style="color:var(--danger-red);">Reject Order</h3>
+        <button style="border:none; background:none; font-size:18px; cursor:pointer;" onclick="closeRejectModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">Please specify a reason for rejection (required for platform audit & customer notification):</p>
+        <textarea id="rejectReasonInput" rows="3" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" placeholder="e.g. Items out of stock, kitchen overwhelmed during peak hour..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeRejectModal()">Cancel</button>
+        <button class="btn" style="background:var(--danger-red); color:white;" onclick="confirmRejectOrder()">Confirm Reject</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD PRODUCT MODAL (FULL BACKEND INTEGRATION) -->
+  <div class="modal-overlay" id="addProductModal">
+    <div class="modal-content" style="max-width:550px;">
+      <div class="modal-header">
+        <h3 style="color:var(--espresso-brown);">Add New Product / Menu Item</h3>
+        <button style="border:none; background:none; font-size:18px; cursor:pointer;" onclick="closeAddProductModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Product / Item Name *</label>
+          <input type="text" id="newProdName" placeholder="e.g. Farmhouse Veggie Delight Pizza" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" />
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Description</label>
+          <textarea id="newProdDesc" rows="2" placeholder="Fresh toppings, herbs & 100% mozzarella cheese" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;"></textarea>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+          <div>
+            <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Price (₹) *</label>
+            <input type="number" id="newProdPrice" placeholder="299" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" />
+          </div>
+          <div>
+            <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Discount Price (₹)</label>
+            <input type="number" id="newProdDiscount" placeholder="249" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" />
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+          <div>
+            <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Available Stock</label>
+            <input type="number" id="newProdStock" value="50" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" />
+          </div>
+          <div>
+            <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Unit / Portion</label>
+            <input type="text" id="newProdUnit" value="piece" placeholder="piece, kg, hr" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" />
+          </div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Product Image URL</label>
+          <input type="text" id="newProdImage" value="https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAddProductModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitNewProductToBackend()">Save to Backend Catalog</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEW CUSTOM ORDER MODAL (SIMULATE INCOMING ORDER) -->
+  <div class="modal-overlay" id="newOrderModal">
+    <div class="modal-content" style="max-width:480px;">
+      <div class="modal-header">
+        <h3 style="color:var(--espresso-brown);">Create Incoming Custom Order</h3>
+        <button style="border:none; background:none; font-size:18px; cursor:pointer;" onclick="closeNewOrderModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Customer Name</label>
+          <input type="text" id="orderCustName" value="Karan Mehra" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" />
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Customer Phone</label>
+          <input type="text" id="orderCustPhone" value="+91 99887 76655" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" />
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+          <div>
+            <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Total Amount (₹)</label>
+            <input type="number" id="orderAmount" value="549" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" />
+          </div>
+          <div>
+            <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Payment Method</label>
+            <select id="orderPaymentMethod" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;">
+              <option value="UPI">UPI</option>
+              <option value="COD">COD</option>
+              <option value="Card">Card</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeNewOrderModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitNewOrderToBackend()">Place Order to Backend</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vendor App Logic -->
+  <script src="js/vendor-app.js"></script>
+</body>
+</html>
