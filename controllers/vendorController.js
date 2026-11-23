@@ -557,28 +557,54 @@ async function toggleStoreStatus(req, res) {
   }
 }
 
-// 6. VENDOR DASHBOARD STATS (Matching Slide 2.6)
+// 6. VENDOR DASHBOARD STATS (Live dynamic metrics calculated from vendor's real orders & catalog)
 async function getDashboardStats(req, res) {
   try {
-    const vendorId = req.user?.vendorId || req.query.vendor_id || 1;
-    const vendor = (db.isConnected() ? (await db.query('SELECT * FROM vendors WHERE id = ?', [vendorId]))[0] : db.memoryStore.vendors.find((v) => v.id == vendorId)) || db.memoryStore.vendors[0];
+    const vendorId = req.user?.vendorId || req.query.vendor_id || (req.user?.id) || 1;
+    let vendor = null;
+    let vendorOrders = [];
+    let vendorProducts = [];
+
+    if (db.isConnected()) {
+      const vRows = await db.query('SELECT * FROM vendors WHERE id = ?', [vendorId]);
+      vendor = vRows[0];
+      vendorOrders = await db.query('SELECT * FROM orders WHERE vendor_id = ?', [vendorId]);
+      vendorProducts = await db.query('SELECT * FROM products WHERE vendor_id = ?', [vendorId]);
+    } else {
+      vendor = (db.memoryStore.vendors || []).find((v) => v.id == vendorId) || (db.memoryStore.vendors || [])[0];
+      vendorOrders = (db.memoryStore.orders || []).filter((o) => o.vendor_id == vendorId);
+      vendorProducts = (db.memoryStore.products || []).filter((p) => p.vendor_id == vendorId);
+    }
+
+    const commissionRate = parseFloat(vendor?.commission_rate) || 15.0;
+    const completedOrders = vendorOrders.filter(o => o.order_status === 'delivered');
+    const totalSalesAmount = completedOrders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || parseFloat(o.amount) || 0), 0);
+    const vendorEarningsAmount = Math.round(totalSalesAmount * (1 - (commissionRate / 100)));
+
+    // Real weekly breakdown
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayCounts = { 'Mon': 0, 'Tue': 0, 'Wed': 0, 'Thu': 0, 'Fri': 0, 'Sat': 0, 'Sun': 0 };
+    vendorOrders.forEach(o => {
+      const d = o.created_at ? new Date(o.created_at) : new Date();
+      const dayName = days[d.getDay()] || 'Mon';
+      if (dayCounts[dayName] !== undefined) dayCounts[dayName]++;
+    });
+
+    const weeklyStats = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => ({
+      day,
+      count: dayCounts[day] || 0,
+      completed: dayCounts[day] || 0,
+      cancelled: 0
+    }));
 
     const stats = {
-      totalOrders: vendor.total_orders || 125,
-      totalSales: vendor.total_revenue || 24680,
-      vendorEarnings: Math.round((vendor.total_revenue || 24680) * 0.85),
-      totalProducts: (db.memoryStore.products || []).filter((p) => p.vendor_id == vendorId).length || 32,
-      avgRating: vendor.rating || 4.6,
-      weeklyStats: [
-        { day: 'Mon', completed: 18, cancelled: 2 },
-        { day: 'Tue', completed: 22, cancelled: 1 },
-        { day: 'Wed', completed: 20, cancelled: 3 },
-        { day: 'Thu', completed: 25, cancelled: 2 },
-        { day: 'Fri', completed: 28, cancelled: 1 },
-        { day: 'Sat', completed: 35, cancelled: 4 },
-        { day: 'Sun', completed: 42, cancelled: 2 }
-      ],
-      popularProducts: (db.memoryStore.products || []).filter((p) => p.vendor_id == vendorId).slice(0, 4)
+      totalOrders: vendorOrders.length,
+      totalSales: totalSalesAmount,
+      vendorEarnings: vendorEarningsAmount,
+      totalProducts: vendorProducts.length,
+      avgRating: parseFloat(vendor?.rating) || 5.0,
+      weeklyStats,
+      popularProducts: vendorProducts.slice(0, 4)
     };
 
     res.json({ success: true, stats });
@@ -800,33 +826,49 @@ async function deleteProduct(req, res) {
   }
 }
 
-// 9. EARNINGS & SETTLEMENTS
+// 9. EARNINGS & SETTLEMENTS (Live calculation from vendor's real completed orders)
 async function getEarnings(req, res) {
   try {
-    const vendorId = req.user?.vendorId || req.query.vendor_id || 1;
-    const vendor = db.memoryStore.vendors.find((v) => v.id == vendorId) || db.memoryStore.vendors[0];
+    const vendorId = req.user?.vendorId || req.query.vendor_id || (req.user?.id) || 1;
+    let vendor = null;
+    let vendorOrders = [];
 
-    const totalSales = vendor.total_revenue || 78450;
-    const commissionRate = vendor.commission_rate || 15.0;
+    if (db.isConnected()) {
+      const vRows = await db.query('SELECT * FROM vendors WHERE id = ?', [vendorId]);
+      vendor = vRows[0];
+      vendorOrders = await db.query('SELECT * FROM orders WHERE vendor_id = ?', [vendorId]);
+    } else {
+      vendor = (db.memoryStore.vendors || []).find((v) => v.id == vendorId) || (db.memoryStore.vendors || [])[0];
+      vendorOrders = (db.memoryStore.orders || []).filter((o) => o.vendor_id == vendorId);
+    }
+
+    const commissionRate = parseFloat(vendor?.commission_rate) || 15.0;
+    const completedOrders = vendorOrders.filter(o => o.order_status === 'delivered');
+    const cancelledOrders = vendorOrders.filter(o => o.order_status === 'cancelled');
+
+    const totalSales = completedOrders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || parseFloat(o.amount) || 0), 0);
     const commissionDeduction = Math.round(totalSales * (commissionRate / 100));
     const netEarnings = totalSales - commissionDeduction;
 
     res.json({
       success: true,
       earnings: {
-        totalOrders: vendor.total_orders || 320,
-        completedOrders: 280,
-        cancelledOrders: 40,
+        totalOrders: vendorOrders.length,
+        total_orders: vendorOrders.length,
+        completedOrders: completedOrders.length,
+        completed_orders: completedOrders.length,
+        cancelledOrders: cancelledOrders.length,
+        cancelled_orders: cancelledOrders.length,
         totalSales,
+        total_sales: totalSales,
         commissionRate: `${commissionRate}%`,
         commissionDeduction,
+        admin_commission: commissionDeduction,
         netEarnings,
-        pendingPayout: 18450,
-        settlementHistory: [
-          { id: 'SETT-901', date: '2026-11-15', amount: 24500, status: 'paid', reference: 'UTR981273948' },
-          { id: 'SETT-900', date: '2026-11-08', amount: 19800, status: 'paid', reference: 'UTR871625341' },
-          { id: 'SETT-899', date: '2026-11-01', amount: 22350, status: 'paid', reference: 'UTR761524332' }
-        ]
+        net_earnings: netEarnings,
+        pendingPayout: netEarnings,
+        pending_payout: netEarnings,
+        settlementHistory: []
       }
     });
   } catch (err) {
