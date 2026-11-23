@@ -2,12 +2,14 @@ const express = require('express');
 const router = express.Router();
 const vendorController = require('../controllers/vendorController');
 const catalogController = require('../controllers/catalogController');
+const uploadRoutes = require('./uploadRoutes');
 
 // 1. Auth & Onboarding with OTP
 router.post('/auth/send-otp', vendorController.sendOtp);
 router.post('/auth/verify-otp', vendorController.verifyOtp);
 router.post('/auth/register', vendorController.registerVendor);
 router.post('/auth/login', vendorController.loginVendor);
+router.use('/upload-document', uploadRoutes);
 
 // 2. Profile & Open/Close Store Toggle
 router.get('/profile', vendorController.getProfile);

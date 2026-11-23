@@ -11,6 +11,7 @@ const deliveryRulesRoutes = require('./deliveryRulesRoutes');
 const financeRoutes = require('./financeRoutes');
 const adminRoutes = require('./adminRoutes');
 const aiRoutes = require('./aiRoutes');
+const uploadRoutes = require('./uploadRoutes');
 
 router.use('/auth', authRoutes);
 router.use('/customer', customerRoutes);
@@ -22,6 +23,7 @@ router.use('/delivery-rules', deliveryRulesRoutes);
 router.use('/finance', financeRoutes);
 router.use('/admin', adminRoutes);
 router.use('/ai', aiRoutes);
+router.use('/upload', uploadRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {

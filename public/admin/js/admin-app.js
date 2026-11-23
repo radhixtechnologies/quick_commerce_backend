@@ -781,35 +781,147 @@ function inspectVendorKyc(vendorId) {
   const badgeEl = document.getElementById('kycModalCategoryBadge');
   const bodyEl = document.getElementById('kycModalBody');
 
-  if (nameEl) nameEl.textContent = `${vendor.business_name} - KYC Verification`;
-  if (badgeEl) badgeEl.innerHTML = `Category: <b>${(vendor.vendor_category || vendor.business_type).toUpperCase()}</b> &bull; Status: <b>${(vendor.approval_status || 'pending').toUpperCase()}</b>`;
+  if (nameEl) nameEl.textContent = `${vendor.business_name || 'Vendor Profile'}`;
+  if (badgeEl) badgeEl.innerHTML = `Category: <b>${(vendor.vendor_category || vendor.business_type || 'FOOD').toUpperCase()}</b> &bull; Status: <span class="status-badge badge-${vendor.approval_status || 'pending'}">${(vendor.approval_status || 'pending').toUpperCase()}</span>`;
 
-  const docs = vendor.documents_json || {
-    trade_license: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
-    gst_certificate: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80',
-    id_proof: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=600&q=80'
-  };
+  // Parse documents and bank details if stringified
+  let docs = vendor.documents_json || {};
+  if (typeof docs === 'string') {
+    try { docs = JSON.parse(docs); } catch (e) { docs = {}; }
+  }
+
+  let bank = vendor.bank_details_json || {};
+  if (typeof bank === 'string') {
+    try { bank = JSON.parse(bank); } catch (e) { bank = {}; }
+  }
+
   const verif = vendor.document_verification_json || {};
 
+  // Standard fallback keys based on category if empty
+  const docKeys = Object.keys(docs);
+  if (docKeys.length === 0) {
+    if (vendor.vendor_category === 'service_based' || vendor.business_type === 'service_based') {
+      docs['aadhaar_card'] = 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=600&q=80';
+      docs['police_verification'] = 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80';
+      docs['skill_certificate'] = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80';
+    } else {
+      docs['fssai_license'] = 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80';
+      docs['gst_certificate'] = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80';
+      docs['trade_license'] = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80';
+    }
+  }
+
   bodyEl.innerHTML = `
-    <div style="display:flex; flex-direction:column; gap:16px;">
+    <!-- 1. VENDOR BUSINESS DETAILS CARD -->
+    <div style="background: white; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px 18px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #F1F5F9;">
+        <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 8px;">
+          <span>🏪</span> Business & Store Profile
+        </h4>
+        <span class="status-badge ${vendor.is_open ? 'badge-active' : 'badge-cancelled'}" style="font-size: 10.5px;">
+          ${vendor.is_open ? '● STORE OPEN' : '○ STORE CLOSED'}
+        </span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; font-size: 13px;">
+        <div>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">BUSINESS NAME</span>
+          <b style="color:var(--text-dark);">${vendor.business_name || 'N/A'}</b>
+        </div>
+        <div>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">OWNER / CONTACT PERSON</span>
+          <b style="color:var(--text-dark);">${vendor.owner_name || vendor.contact_person || 'N/A'}</b>
+        </div>
+        <div>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">PHONE NUMBER</span>
+          <b>📞 ${vendor.phone || 'N/A'}</b>
+        </div>
+        <div>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">EMAIL ADDRESS</span>
+          <b>✉️ ${vendor.email || 'N/A'}</b>
+        </div>
+        <div>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">VERTICAL / CATEGORY</span>
+          <span class="status-badge" style="background:#FFF7ED; color:#EA580C; font-weight:700; padding:2px 8px;">
+            ${(vendor.vendor_category || vendor.business_type || 'FOOD').toUpperCase()}
+          </span>
+        </div>
+        <div>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">SERVICE RADIUS</span>
+          <b>📍 ${vendor.service_radius_km || 10} KM Radius</b>
+        </div>
+        <div>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">OPERATING HOURS</span>
+          <b>⏰ ${vendor.opening_time ? vendor.opening_time.slice(0, 5) : '08:00'} - ${vendor.closing_time ? vendor.closing_time.slice(0, 5) : '23:00'}</b>
+        </div>
+        <div>
+          <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600;">PLATFORM COMMISSION</span>
+          <b style="color:var(--royal-gold);">${vendor.commission_rate || 15}% per order</b>
+        </div>
+      </div>
+
+      <!-- Address Row -->
+      <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color); font-size: 13px;">
+        <span style="color:var(--text-muted); display:block; font-size:11px; font-weight:600; margin-bottom:2px;">REGISTERED STORE ADDRESS</span>
+        <b style="color:var(--text-dark);">📍 ${vendor.address || 'Address pending'} ${vendor.city ? `, ${vendor.city}` : ''} ${vendor.state ? `, ${vendor.state}` : ''} ${vendor.pincode ? `- ${vendor.pincode}` : ''}</b>
+      </div>
+
+      <!-- Bank Details Row -->
+      ${(bank.account_no || bank.upi_id || bank.account_holder) ? `
+        <div style="margin-top: 12px; padding: 10px 14px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12.5px;">
+          <span style="font-weight:700; color:var(--text-dark); display:block; margin-bottom:4px;">🏦 Bank Settlement Details:</span>
+          <span style="color:var(--text-muted);">Account Holder:</span> <b>${bank.account_holder || vendor.owner_name || 'N/A'}</b> &bull;
+          <span style="color:var(--text-muted);">A/C No:</span> <b>${bank.account_no || 'N/A'}</b> &bull;
+          <span style="color:var(--text-muted);">IFSC:</span> <b>${bank.ifsc || 'N/A'}</b> &bull;
+          <span style="color:var(--text-muted);">UPI ID:</span> <b>${bank.upi_id || 'N/A'}</b>
+        </div>
+      ` : ''}
+    </div>
+
+    <!-- 2. KYC DOCUMENTS VERIFICATION LIST -->
+    <div style="margin-bottom: 8px;">
+      <h4 style="margin: 0 0 12px; font-size: 15px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 8px;">
+        <span>📑</span> Role-Wise KYC Documents (${Object.keys(docs).length})
+      </h4>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:14px;">
       ${Object.keys(docs).map(key => {
-        const docUrl = docs[key];
+        const rawUrl = (docs[key] ? String(docs[key]) : '');
         const status = verif[key] || 'pending';
         const formattedKey = key.replace(/_/g, ' ').toUpperCase();
+
+        // Calculate clean display URL that never breaks in browser
+        let displayUrl = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80';
+        let isLocalOrFile = false;
+        let originalFileName = '';
+
+        if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:image')) {
+          displayUrl = rawUrl;
+        } else if (rawUrl.startsWith('/uploads')) {
+          displayUrl = window.location.origin + rawUrl;
+        } else if (rawUrl.length > 0) {
+          isLocalOrFile = true;
+          originalFileName = rawUrl.split(/[\\/]/).pop() || 'document.jpg';
+        }
 
         return `
           <div style="border:1px solid var(--border-color); border-radius:10px; padding:14px; background:#F8FAFC;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <span style="font-size:13.5px; font-weight:700; color:var(--text-dark);">${formattedKey}</span>
+              <div>
+                <span style="font-size:13.5px; font-weight:700; color:var(--text-dark);">${formattedKey}</span>
+                ${isLocalOrFile ? `<span style="display:block; font-size:11px; color:#64748B; margin-top:2px;">📁 Device File: <b>${originalFileName}</b></span>` : ''}
+              </div>
               <span class="status-badge ${status === 'approved' ? 'badge-active' : (status === 'rejected' ? 'badge-cancelled' : 'badge-pending')}">
                 ${status.toUpperCase()}
               </span>
             </div>
             
             <div style="display:flex; gap:14px; align-items:center;">
-              <a href="${docUrl}" target="_blank" title="Click to view full size">
-                <img src="${docUrl}" style="width:110px; height:75px; object-fit:cover; border-radius:8px; border:1px solid #CBD5E1;" />
+              <a href="${displayUrl}" target="_blank" title="Click to view full size">
+                <img src="${displayUrl}" 
+                     onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80';" 
+                     style="width:110px; height:75px; object-fit:cover; border-radius:8px; border:1px solid #CBD5E1; background:white;" />
               </a>
               <div style="flex:1;">
                 <p style="margin:0 0 8px; font-size:12px; color:var(--text-muted);">

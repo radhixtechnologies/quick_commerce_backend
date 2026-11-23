@@ -1,9 +1,41 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
 const db = require('../config/db');
 const { ROLE_KYC_DOCUMENTS, CATEGORY_OTP_REQUIREMENT } = require('../config/constants');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'quick_commerce_super_secret_jwt_key_2026';
+
+function processDocumentsPayload(docs) {
+  if (!docs || typeof docs !== 'object') return {};
+  const processed = { ...docs };
+  const uploadsDir = path.join(__dirname, '..', 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  for (const [key, val] of Object.entries(processed)) {
+    if (typeof val === 'string' && (val.startsWith('data:image') || val.startsWith('data:application/pdf'))) {
+      try {
+        const matches = val.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        let ext = '.jpg';
+        if (matches && matches[1]) {
+          if (matches[1].includes('png')) ext = '.png';
+          else if (matches[1].includes('pdf')) ext = '.pdf';
+        }
+        const b64 = matches ? matches[2] : val.replace(/^data:[^;]+;base64,/, '');
+        const buffer = Buffer.from(b64, 'base64');
+        const filename = `kyc-${Date.now()}-${key}${ext}`;
+        fs.writeFileSync(path.join(uploadsDir, filename), buffer);
+        processed[key] = `/uploads/${filename}`;
+      } catch (e) {
+        console.error('Error saving base64 doc:', e);
+      }
+    }
+  }
+  return processed;
+}
 
 // 1. REGISTRATION OTP: Send OTP for all vendor categories
 async function sendOtp(req, res) {
@@ -100,6 +132,7 @@ async function registerVendor(req, res) {
     const {
       business_name,
       legal_name,
+      owner_name,
       email,
       phone,
       password,
@@ -117,6 +150,8 @@ async function registerVendor(req, res) {
       documents = {},
       bank_details = {}
     } = req.body;
+
+    const contactName = owner_name || req.body.name || req.body.contact_person || business_name;
 
     if (!business_name || !email || !phone || !password) {
       return res.status(400).json({
@@ -155,11 +190,14 @@ async function registerVendor(req, res) {
       });
     }
 
+    // Process any base64 document payloads into real disk files
+    const processedDocuments = processDocumentsPayload(documents);
+
     // Prepare role-wise document verification map
     const requiredDocs = ROLE_KYC_DOCUMENTS[vendor_category] || [];
     const documentVerification = {};
     requiredDocs.forEach((doc) => {
-      documentVerification[doc.key] = documents[doc.key] ? 'pending' : 'missing';
+      documentVerification[doc.key] = processedDocuments[doc.key] ? 'pending' : 'missing';
     });
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -184,7 +222,7 @@ async function registerVendor(req, res) {
           userId, business_name, legal_name || null, vendor_category, vendor_category, email, phone, description || null,
           address, city, state, pincode, latitude, longitude, service_radius_km,
           opening_time, closing_time, 1,
-          JSON.stringify(documents), JSON.stringify(documentVerification), JSON.stringify(bank_details)
+          JSON.stringify(processedDocuments), JSON.stringify(documentVerification), JSON.stringify(bank_details)
         ]
       );
 
@@ -195,6 +233,8 @@ async function registerVendor(req, res) {
         user_id: userId,
         business_name,
         legal_name: legal_name || business_name,
+        owner_name: contactName,
+        contact_person: contactName,
         business_type: vendor_category,
         vendor_category,
         email,
@@ -217,7 +257,7 @@ async function registerVendor(req, res) {
         total_orders: 0,
         total_revenue: 0,
         commission_rate: 15.0,
-        documents_json: documents,
+        documents_json: processedDocuments,
         document_verification_json: documentVerification,
         bank_details_json: bank_details
       };
@@ -259,6 +299,8 @@ async function registerVendor(req, res) {
       user_id: newUserId,
       business_name,
       legal_name: legal_name || business_name,
+      owner_name: contactName,
+      contact_person: contactName,
       business_type: vendor_category,
       vendor_category,
       email,
@@ -281,7 +323,7 @@ async function registerVendor(req, res) {
       total_orders: 0,
       total_revenue: 0,
       commission_rate: 15.0,
-      documents_json: documents,
+      documents_json: processedDocuments,
       document_verification_json: documentVerification,
       bank_details_json: bank_details
     };
