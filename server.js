@@ -56,20 +56,10 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// API Routes
+// Super App & Legacy API Routes
+const superAppRoutes = require('./superapp/routes/apiRoutes');
+app.use('/api', superAppRoutes);
 app.use('/api/v1', apiRoutes);
-app.use('/api', apiRoutes);
-
-// Root Welcome Route
-app.get('/', (req, res) => {
-  res.json({
-    project: 'Quick Commerce Multi-Vendor Backend',
-    version: '1.0.0',
-    admin_panel_url: '/admin',
-    documentation: '/api/v1/health',
-    status: 'running'
-  });
-});
 
 // Error handling middlewares
 app.use(notFoundHandler);
