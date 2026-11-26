@@ -1121,7 +1121,6 @@ function closeDocPreviewLightbox() {
   const lightbox = document.getElementById('docPreviewLightbox');
   if (lightbox) lightbox.style.display = 'none';
 }
-}
 
 async function updateDocStatus(vendorId, docKey, status) {
   try {
