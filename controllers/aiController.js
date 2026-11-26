@@ -59,6 +59,50 @@ function callGeminiAPI(prompt, systemInstruction) {
   });
 }
 
+// Smart fallback description builder tailored to the exact product & category
+function buildSmartProductDescription(productName, category = 'food') {
+  const name = (productName || 'Special Item').trim();
+  const lower = name.toLowerCase();
+
+  if (category === 'grocery') {
+    return `Farm-fresh, hand-selected ${name} packed hygienically to preserve natural nutrition and peak freshness. Ideal for everyday home cooking and delivered right to your doorstep in minutes.`;
+  }
+  if (category === 'ecommerce') {
+    return `Premium quality ${name} crafted with durable materials and modern design for reliable everyday performance. Backed by verified seller quality assurance and fast doorstep delivery.`;
+  }
+  if (category === 'services' || category === 'service_based') {
+    return `Professional, background-verified ${name} service delivered at your doorstep by trained specialists using genuine tools and safety-first hygiene protocols.`;
+  }
+
+  // Food-specific appetizing descriptions based on dish keywords
+  if (lower.includes('sandwich') || lower.includes('sub') || lower.includes('toast')) {
+    return `Freshly toasted ${name} layered with crisp garden veggies, creamy signature sauces, and melted cheese between golden-brown artisan bread. Served hot and packed hygienically for a satisfying bite anytime.`;
+  }
+  if (lower.includes('pasta') || lower.includes('spaghetti') || lower.includes('penne') || lower.includes('mac')) {
+    return `Al dente ${name} tossed in a rich, velvety sauce infused with aromatic herbs, garlic, and freshly grated parmesan cheese. Slow-simmered to perfection and delivered piping hot.`;
+  }
+  if (lower.includes('pizza')) {
+    return `Hand-tossed ${name} topped with rich vine-ripened tomato sauce, bubbling mozzarella cheese, and farm-fresh toppings baked to a golden crust. Every slice delivers bold Italian-style flavor.`;
+  }
+  if (lower.includes('burger')) {
+    return `Juicy, flame-grilled ${name} stacked with crisp lettuce, ripe tomatoes, melted cheddar, and our signature house sauce inside a soft toasted brioche bun. Freshly prepared to order.`;
+  }
+  if (lower.includes('biryani') || lower.includes('pulao') || lower.includes('rice')) {
+    return `Aromatic long-grain basmati ${name} slow-cooked on dum with hand-ground royal spices, saffron, caramelized onions, and fresh mint. Served hot with rich, unforgettable flavor in every spoonful.`;
+  }
+  if (lower.includes('paneer') || lower.includes('butter') || lower.includes('masala') || lower.includes('dal') || lower.includes('curry') || lower.includes('thali')) {
+    return `Authentic chef-special ${name} simmered in a rich, spiced gravy made with fresh tomatoes, aromatic whole spices, and velvety cream. Prepared fresh in our kitchen for a wholesome meal.`;
+  }
+  if (lower.includes('coffee') || lower.includes('tea') || lower.includes('chai') || lower.includes('shake') || lower.includes('juice') || lower.includes('smoothie')) {
+    return `Refreshing, handcrafted ${name} blended with premium ingredients for the perfect balance of rich flavor and chilled smoothness. Sealed spill-proof for instant doorstep delivery.`;
+  }
+  if (lower.includes('cake') || lower.includes('pastry') || lower.includes('brownie') || lower.includes('dessert') || lower.includes('sweet')) {
+    return `Decadent, freshly baked ${name} made with rich cocoa, pure butter, and velvety frosting that melts in your mouth. Crafted fresh daily for celebrations and sweet cravings.`;
+  }
+
+  return `Freshly prepared ${name} crafted with authentic, high-quality ingredients, rich flavors, and balanced spices. Packed hygienically and delivered hot to your doorstep.`;
+}
+
 // 1. GEMINI AI: Generate High-Converting Commercial Product Description
 async function generateProductDescription(req, res) {
   try {
@@ -73,7 +117,7 @@ async function generateProductDescription(req, res) {
     const prompt = `Write a mouthwatering, 2-3 sentence appetizing commercial description for a quick commerce / food delivery app item named "${product_name}" in category "${category}" (${cuisine_or_type}). Make it highlight freshness, taste, and premium ingredients. Do not use markdown headers, just the clean description text.`;
     const aiText = await callGeminiAPI(prompt, 'You are an expert food & quick commerce copywriter. Write crisp, mouthwatering descriptions for products in online delivery menus.');
 
-    const description = aiText || `Freshly prepared ${product_name} crafted with authentic ingredients, rich flavors, and packed with care for lightning-fast delivery to your doorstep.`;
+    const description = aiText || buildSmartProductDescription(product_name, category);
 
     res.json({
       success: true,
@@ -148,6 +192,10 @@ async function generateProductImage(req, res) {
       if (promptGen) enhancedPrompt = promptGen;
       if (descGen) aiDescription = descGen;
     } catch (_) {}
+
+    if (!aiDescription || !aiDescription.trim()) {
+      aiDescription = buildSmartProductDescription(product_name, category);
+    }
 
     // Resolve accurate high-resolution photography matching the requested dish (e.g. Pasta, Biryani, Pizza)
     const selectedPhoto = await resolveDishImage(product_name, category);

@@ -2,20 +2,21 @@ const db = require('../config/db');
 
 async function getCategories(req, res) {
   try {
-    const { module_type } = req.query;
+    let { module_type } = req.query;
+    if (module_type === 'service_based') module_type = 'services';
     let categories = [];
 
     if (db.isConnected()) {
       let sql = 'SELECT * FROM categories WHERE is_active = 1';
       const params = [];
-      if (module_type) {
+      if (module_type && module_type !== 'all') {
         sql += ' AND module_type = ?';
         params.push(module_type);
       }
       sql += ' ORDER BY sort_order ASC, id ASC';
       categories = await db.query(sql, params);
     } else {
-      categories = db.memoryStore.categories.filter((c) => !module_type || c.module_type === module_type);
+      categories = db.memoryStore.categories.filter((c) => !module_type || module_type === 'all' || c.module_type === module_type);
     }
 
     res.json({ success: true, count: categories.length, categories });
