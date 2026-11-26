@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Xwayu - Vendor Store Panel</title>
-  <link rel="icon" type="image/png" href="/assets/logo.png" />
+  <link rel="icon" type="image/png" href="/assets/logo.png?v=2" />
 
   <!-- Google Fonts: Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,7 +23,7 @@
   <!-- FIXED LEFT NAVIGATION SIDEBAR (Rich Espresso Brown #3B2314) -->
   <aside class="vendor-sidebar">
     <div class="sidebar-brand" style="display:flex; align-items:center; gap:12px; padding:18px 20px;">
-      <img src="/assets/logo.png" alt="Xwayu Logo" style="width:44px; height:44px; border-radius:50%; object-fit:cover; box-shadow:0 2px 10px rgba(0,0,0,0.3); border:2px solid rgba(255,255,255,0.25);" />
+      <img src="/assets/logo.png?v=2" alt="Xwayu Logo" style="width:44px; height:44px; border-radius:50%; object-fit:contain; background:#FFFFFF; padding:2px; box-shadow:0 2px 10px rgba(0,0,0,0.3); border:2px solid rgba(255,255,255,0.25);" />
       <div>
         <div class="brand-title" style="font-size:17px; font-weight:800; letter-spacing:0.3px; color:#FFFFFF;">Xwayu</div>
         <div class="brand-subtitle" id="activeVerticalPill">Partner Hub</div>
@@ -639,113 +639,228 @@
   </div>
 
   <!-- ==========================================================================
-       VENDOR AUTHENTICATION OVERLAY (Mandatory Login / Registration Gate)
+       VENDOR AUTHENTICATION OVERLAY (Phone + OTP + 4-Step Category Wizard)
        ========================================================================== -->
   <div class="vendor-auth-overlay" id="vendorAuthOverlay">
-    <div class="vendor-auth-card">
+    <div class="vendor-auth-card" style="max-width:520px; width:94%; max-height:92vh; overflow-y:auto;">
       <div class="auth-header">
-        <div style="text-align:center; margin-bottom:12px;">
-          <img src="/assets/logo.png" alt="Xwayu Logo" style="width:72px; height:72px; border-radius:50%; object-fit:cover; box-shadow:0 6px 18px rgba(0,0,0,0.18); border:2.5px solid var(--royal-golden, #D97706); display:inline-block;" />
+        <div style="text-align:center; margin-bottom:10px;">
+          <img src="/assets/logo.png?v=2" alt="Xwayu Logo" style="width:68px; height:68px; border-radius:50%; object-fit:contain; background:#FFFFFF; padding:3px; box-shadow:0 6px 18px rgba(0,0,0,0.18); border:2.5px solid var(--royal-golden, #D97706); display:inline-block;" />
         </div>
         <div class="auth-brand-badge">
           <span>⚡</span> Xwayu Partner Portal
         </div>
-        <h2>Vendor Partner Login</h2>
-        <p>Log in to access your store orders, live catalog and real earnings</p>
-      </div>
-
-      <!-- Auth Mode Tabs -->
-      <div class="auth-nav-tabs">
-        <button class="auth-nav-tab active" id="tabBtnLogin" onclick="switchAuthTab('login')">
-          🔑 Partner Log In
-        </button>
-        <button class="auth-nav-tab" id="tabBtnRegister" onclick="switchAuthTab('register')">
-          📝 Register New Store
-        </button>
+        <h2 id="authHeaderTitle">Partner Login</h2>
+        <p id="authHeaderSubtitle">Login or register with your mobile number via OTP</p>
       </div>
 
       <div class="auth-body">
         <!-- Live Alert Message Box -->
         <div class="auth-alert" id="authAlertBox"></div>
 
-        <!-- 1. LOGIN FORM -->
-        <form id="formVendorLogin" onsubmit="handleVendorLogin(event)">
+        <!-- STEP A: PHONE NUMBER + CATEGORY SELECTION -->
+        <form id="vendorStepPhone" onsubmit="sendVendorOtp(event)">
           <div class="auth-form-group">
-            <label for="authLoginIdentifier">Registered Mobile Phone or Email</label>
-            <input type="text" class="auth-form-control" id="authLoginIdentifier" placeholder="e.g. +919876543210 or store@example.com" required autocomplete="username" />
+            <label>Select Your Service / Business Category</label>
+            <div id="webCategoryPills" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;">
+              <button type="button" class="web-cat-pill active" data-cat="food" onclick="selectVendorCategory('food')" style="padding:8px 12px; border-radius:12px; border:1.5px solid #FF6B00; background:#FFF7ED; color:#FF6B00; font-weight:700; font-size:12px; cursor:pointer;">🍔 Food</button>
+              <button type="button" class="web-cat-pill" data-cat="grocery" onclick="selectVendorCategory('grocery')" style="padding:8px 12px; border-radius:12px; border:1px solid #E5E7EB; background:#FFF; color:#4B5563; font-weight:600; font-size:12px; cursor:pointer;">🥦 Daily Needs</button>
+              <button type="button" class="web-cat-pill" data-cat="ecommerce" onclick="selectVendorCategory('ecommerce')" style="padding:8px 12px; border-radius:12px; border:1px solid #E5E7EB; background:#FFF; color:#4B5563; font-weight:600; font-size:12px; cursor:pointer;">🛍️ E-Commerce</button>
+              <button type="button" class="web-cat-pill" data-cat="service_based" onclick="selectVendorCategory('service_based')" style="padding:8px 12px; border-radius:12px; border:1px solid #E5E7EB; background:#FFF; color:#4B5563; font-weight:600; font-size:12px; cursor:pointer;">🛠️ Services</button>
+              <button type="button" class="web-cat-pill" data-cat="medicines" onclick="selectVendorCategory('medicines')" style="padding:8px 12px; border-radius:12px; border:1px solid #E5E7EB; background:#FFF; color:#4B5563; font-weight:600; font-size:12px; cursor:pointer;">💊 Medicines</button>
+            </div>
           </div>
 
           <div class="auth-form-group">
-            <label for="authLoginPassword">Account Password</label>
-            <input type="password" class="auth-form-control" id="authLoginPassword" placeholder="Enter your secret password" required autocomplete="current-password" />
+            <label for="authPhoneInput">Mobile Number *</label>
+            <div style="display:flex; align-items:center; border:1.5px solid #E5E7EB; border-radius:12px; background:#FFF; overflow:hidden;">
+              <span style="padding:12px 14px; font-weight:700; color:#181A20; background:#F9FAFB; border-right:1px solid #E5E7EB;">+91</span>
+              <input type="tel" id="authPhoneInput" maxlength="10" placeholder="Enter 10-digit mobile number" required style="border:none; outline:none; padding:12px 14px; flex:1; font-size:14px;" />
+            </div>
           </div>
 
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; font-size:12px; color:var(--text-secondary);">
-            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-              <input type="checkbox" id="authRememberMe" checked />
-              <span>Keep me logged in</span>
-            </label>
-            <span style="color:var(--primary-orange); cursor:pointer; font-weight:700;" onclick="switchAuthTab('register')">Register New Store ➔</span>
+          <button type="submit" class="auth-submit-btn" id="btnSendOtp" style="background:#0A0A0A;">
+            <span>Send OTP ➔</span>
+          </button>
+
+          <div style="margin-top:14px; padding:12px; border-radius:12px; background:#F5F3F0; border:1px solid #E5E7EB; font-size:12px; color:#4B5563; display:flex; gap:10px; align-items:center;">
+            <span style="font-size:18px;">🏪</span>
+            <span>New partner? Just verify your number — we'll take you straight into the 4-step sign-up form if you don't have an account yet.</span>
+          </div>
+        </form>
+
+        <!-- STEP B: OTP VERIFICATION -->
+        <form id="vendorStepOtp" style="display:none;" onsubmit="verifyVendorOtp(event)">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; background:#FFF7ED; padding:10px 14px; border-radius:12px; border:1px solid #FDE68A;">
+            <span style="font-size:13px; color:#181A20;">Code sent to <strong id="otpTargetPhone">+91</strong></span>
+            <button type="button" onclick="backToPhoneStep()" style="background:none; border:none; color:#FF6B00; font-weight:700; cursor:pointer; font-size:12px;">Edit Number</button>
           </div>
 
-          <button type="submit" class="auth-submit-btn" id="btnSubmitLogin">
-            <span>Log In to Partner Dashboard ➔</span>
+          <div class="auth-form-group">
+            <label for="authOtpInput">Enter 6-Digit OTP *</label>
+            <input type="text" class="auth-form-control" id="authOtpInput" maxlength="6" placeholder="e.g. 123456" style="text-align:center; font-size:20px; letter-spacing:8px; font-weight:800;" required />
+          </div>
+
+          <div style="text-align:center; margin-bottom:14px; font-size:12px; color:#6B7280;">
+            <span id="webOtpTimerText">Resend available shortly</span>
+            <button type="button" id="btnWebResendOtp" onclick="sendVendorOtp(null, true)" style="display:none; background:none; border:none; color:#FF6B00; font-weight:700; cursor:pointer;">Resend OTP Now</button>
+          </div>
+
+          <button type="submit" class="auth-submit-btn" id="btnVerifyOtp" style="background:#0A0A0A;">
+            <span>Verify &amp; Continue ➔</span>
           </button>
         </form>
 
-        <!-- 2. REGISTRATION FORM -->
-        <form id="formVendorRegister" style="display:none;" onsubmit="handleVendorRegister(event)">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <!-- STEP C: 4-STEP CATEGORY-ADAPTIVE ONBOARDING WIZARD -->
+        <div id="vendorStepWizard" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span id="wizStepLabel" style="font-size:11px; font-weight:800; color:#FF6B00; letter-spacing:0.6px;">STEP 1 OF 4</span>
+            <span id="wizPctBadge" style="font-size:11px; font-weight:700; color:#FF6B00; background:#FFEFE3; padding:3px 10px; border-radius:12px;">25%</span>
+          </div>
+          <div style="display:flex; gap:6px; margin-bottom:16px;">
+            <div id="wizBar1" style="flex:1; height:4px; border-radius:4px; background:#FF6B00;"></div>
+            <div id="wizBar2" style="flex:1; height:4px; border-radius:4px; background:#E5E7EB;"></div>
+            <div id="wizBar3" style="flex:1; height:4px; border-radius:4px; background:#E5E7EB;"></div>
+            <div id="wizBar4" style="flex:1; height:4px; border-radius:4px; background:#E5E7EB;"></div>
+          </div>
+
+          <!-- WIZARD STEP 1: BUSINESS & OWNER -->
+          <div id="wizPage1">
             <div class="auth-form-group">
-              <label for="authRegBusinessName">Store / Business Name *</label>
-              <input type="text" class="auth-form-control" id="authRegBusinessName" placeholder="e.g. Royal Spice Kitchen" required />
+              <label id="wizBizNameLabel">Business Name *</label>
+              <input type="text" class="auth-form-control" id="wizBizName" placeholder="e.g. Royal Spice Kitchen" />
             </div>
             <div class="auth-form-group">
-              <label for="authRegOwnerName">Owner / Contact Name *</label>
-              <input type="text" class="auth-form-control" id="authRegOwnerName" placeholder="e.g. Rahul Sharma" required />
+              <label id="wizSubtypeLabel">Business Type *</label>
+              <div style="display:flex; gap:8px;">
+                <button type="button" id="wizSubBtnA" onclick="selectWizSubtype('A')" style="flex:1; padding:10px; border-radius:20px; border:1.5px solid #FF6B00; background:#FFF7ED; color:#FF6B00; font-weight:700; font-size:12px; cursor:pointer;">Option A</button>
+                <button type="button" id="wizSubBtnB" onclick="selectWizSubtype('B')" style="flex:1; padding:10px; border-radius:20px; border:1px solid #E5E7EB; background:#FFF; color:#181A20; font-weight:600; font-size:12px; cursor:pointer;">Option B</button>
+              </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div class="auth-form-group">
+                <label>Owner Full Name *</label>
+                <input type="text" class="auth-form-control" id="wizOwnerName" placeholder="Owner name" />
+              </div>
+              <div class="auth-form-group">
+                <label>Email Address</label>
+                <input type="email" class="auth-form-control" id="wizEmail" placeholder="owner@example.com" />
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+              <button type="button" class="auth-submit-btn" onclick="backToPhoneStep()" style="flex:1; background:#FFF; color:#181A20; border:1px solid #E5E7EB;">Cancel</button>
+              <button type="button" class="auth-submit-btn" onclick="wizardGoToStep(2)" style="flex:2; background:#FF6B00;">Next ➔</button>
             </div>
           </div>
 
-          <div class="auth-form-group">
-            <label for="authRegCategory">Business Category (Vertical) *</label>
-            <select class="auth-form-control" id="authRegCategory" required>
-              <option value="food">🍔 Food & Restaurants (Delivery Hub)</option>
-              <option value="grocery">🥦 Grocery & Supermarket (Daily Essentials)</option>
-              <option value="ecommerce">🛍️ E-Commerce (Retail & Fashion)</option>
-              <option value="service_based">🛠️ Service-Based (Urban Clap Style)</option>
-            </select>
-          </div>
-
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <!-- WIZARD STEP 2: LOCATION, TAGS & TIMINGS -->
+          <div id="wizPage2" style="display:none;">
+            <button type="button" id="btnWebGps" onclick="useWebCurrentLocation()" style="width:100%; padding:10px; border-radius:12px; border:1.5px solid #FF6B00; background:#FFF7ED; color:#FF6B00; font-weight:700; font-size:13px; cursor:pointer; margin-bottom:10px;">
+              📍 Use Current GPS Location (Auto-fill Address)
+            </button>
             <div class="auth-form-group">
-              <label for="authRegPhone">Mobile Number *</label>
-              <input type="tel" class="auth-form-control" id="authRegPhone" placeholder="+91 98765 43210" required />
+              <label>Address Line 1 *</label>
+              <input type="text" class="auth-form-control" id="wizAddr1" placeholder="Shop / Building / Sector" />
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+              <div class="auth-form-group">
+                <label>City *</label>
+                <input type="text" class="auth-form-control" id="wizCity" placeholder="City" />
+              </div>
+              <div class="auth-form-group">
+                <label>State *</label>
+                <input type="text" class="auth-form-control" id="wizState" placeholder="State" />
+              </div>
+              <div class="auth-form-group">
+                <label>Pincode *</label>
+                <input type="text" class="auth-form-control" id="wizPincode" placeholder="110088" />
+              </div>
             </div>
             <div class="auth-form-group">
-              <label for="authRegEmail">Email Address *</label>
-              <input type="email" class="auth-form-control" id="authRegEmail" placeholder="partner@store.com" required />
+              <label id="wizTagsLabel">Specializations (Select all that apply)</label>
+              <div id="wizTagsWrap" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-size:12.5px;">
+              <label style="display:flex; align-items:center; gap:6px; font-weight:700; cursor:pointer;">
+                <input type="checkbox" id="wizOpen24x7" /> Open 24x7
+              </label>
+              <span>Est. Time: <strong id="wizEstMinsText">30 mins</strong></span>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+              <button type="button" class="auth-submit-btn" onclick="wizardGoToStep(1)" style="flex:1; background:#FFF; color:#181A20; border:1px solid #E5E7EB;">Back</button>
+              <button type="button" class="auth-submit-btn" onclick="wizardGoToStep(3)" style="flex:2; background:#FF6B00;">Next ➔</button>
             </div>
           </div>
 
-          <div class="auth-form-group">
-            <label for="authRegPassword">Create Account Password *</label>
-            <input type="password" class="auth-form-control" id="authRegPassword" placeholder="Minimum 6 characters" minlength="6" required />
+          <!-- WIZARD STEP 3: DOCUMENTS & COMPLIANCE -->
+          <div id="wizPage3" style="display:none;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div class="auth-form-group">
+                <label>PAN Number</label>
+                <input type="text" class="auth-form-control" id="wizPanNo" placeholder="ABCDE1234F" />
+              </div>
+              <div class="auth-form-group">
+                <label>Name on PAN</label>
+                <input type="text" class="auth-form-control" id="wizPanName" placeholder="Full name" />
+              </div>
+            </div>
+            <div class="auth-form-group">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="wizGstCheck" onchange="document.getElementById('wizGstInputWrap').style.display=this.checked?'block':'none'" />
+                <span>Registered for GST?</span>
+              </label>
+              <div id="wizGstInputWrap" style="display:none; margin-top:6px;">
+                <input type="text" class="auth-form-control" id="wizGstNo" placeholder="Enter 15-digit GSTIN" />
+              </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div class="auth-form-group">
+                <label id="wizLicLabel">FSSAI / License Number</label>
+                <input type="text" class="auth-form-control" id="wizLicNo" placeholder="License number" />
+              </div>
+              <div class="auth-form-group">
+                <label>Expiry Date</label>
+                <input type="date" class="auth-form-control" id="wizLicExp" />
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+              <button type="button" class="auth-submit-btn" onclick="wizardGoToStep(2)" style="flex:1; background:#FFF; color:#181A20; border:1px solid #E5E7EB;">Back</button>
+              <button type="button" class="auth-submit-btn" onclick="wizardGoToStep(4)" style="flex:2; background:#FF6B00;">Next ➔</button>
+            </div>
           </div>
 
-          <div class="auth-form-group">
-            <label for="authRegAddress">Physical Store Address *</label>
-            <input type="text" class="auth-form-control" id="authRegAddress" placeholder="Shop No, Market, Area, City" required />
+          <!-- WIZARD STEP 4: BANK & REVIEW -->
+          <div id="wizPage4" style="display:none;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div class="auth-form-group">
+                <label>Account Holder Name</label>
+                <input type="text" class="auth-form-control" id="wizBankHolder" placeholder="Name on bank account" />
+              </div>
+              <div class="auth-form-group">
+                <label>Account Number</label>
+                <input type="text" class="auth-form-control" id="wizBankAcc" placeholder="Account number" />
+              </div>
+              <div class="auth-form-group">
+                <label>IFSC Code</label>
+                <input type="text" class="auth-form-control" id="wizBankIfsc" placeholder="HDFC0001234" />
+              </div>
+              <div class="auth-form-group">
+                <label>UPI ID (Optional)</label>
+                <input type="text" class="auth-form-control" id="wizBankUpi" placeholder="name@upi" />
+              </div>
+            </div>
+            <div id="wizReviewSummary" style="background:#F9FAFB; border:1px solid #E5E7EB; border-radius:12px; padding:12px; font-size:12px; margin-bottom:12px; line-height:1.6;"></div>
+            <div style="display:flex; gap:10px;">
+              <button type="button" class="auth-submit-btn" onclick="wizardGoToStep(3)" style="flex:1; background:#FFF; color:#181A20; border:1px solid #E5E7EB;">Back</button>
+              <button type="button" id="btnWizSubmit" class="auth-submit-btn" onclick="submitWebWizardRegistration()" style="flex:2; background:#0A0A0A;">Submit Application ➔</button>
+            </div>
           </div>
-
-          <button type="submit" class="auth-submit-btn" id="btnSubmitRegister" style="background:var(--success-green);">
-            <span>Create Store Partner Account ➔</span>
-          </button>
-        </form>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Vendor App Logic -->
-  <script src="/vendor/js/vendor-app.js?v=2.5"></script>
+  <script src="/vendor/js/vendor-app.js?v=3.0"></script>
 </body>
 </html>

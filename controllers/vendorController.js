@@ -116,10 +116,71 @@ async function verifyOtp(req, res) {
       return res.status(400).json({ success: false, message: 'Invalid or expired OTP. Please try again.' });
     }
 
+    // Normalize phone to last 10 digits for reliable account lookup (+91 vs 10-digit)
+    const cleanDigits = String(phone).replace(/\D/g, '');
+    const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+
+    let existingVendor = null;
+    if (db.isConnected()) {
+      const vendors = await db.query(
+        "SELECT * FROM vendors WHERE phone = ? OR RIGHT(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), 10) = ? ORDER BY id DESC LIMIT 1",
+        [phone, last10]
+      );
+      if (vendors.length > 0) {
+        existingVendor = vendors[0];
+      }
+    } else {
+      existingVendor = (db.memoryStore.vendors || []).find((v) => {
+        const vDigits = String(v.phone || '').replace(/\D/g, '');
+        const vLast10 = vDigits.length >= 10 ? vDigits.slice(-10) : vDigits;
+        return v.phone === phone || (last10 && vLast10 === last10);
+      });
+    }
+
+    if (existingVendor) {
+      const token = jwt.sign(
+        {
+          userId: existingVendor.user_id,
+          vendorId: existingVendor.id,
+          role: 'vendor',
+          vendor_category: existingVendor.vendor_category || existingVendor.business_type
+        },
+        JWT_SECRET,
+        { expiresIn: '30d' }
+      );
+
+      return res.json({
+        success: true,
+        is_verified: true,
+        exists: true,
+        token,
+        vendor: {
+          id: existingVendor.id,
+          business_name: existingVendor.business_name,
+          vendor_category: existingVendor.vendor_category || existingVendor.business_type,
+          business_type: existingVendor.business_type,
+          email: existingVendor.email,
+          phone: existingVendor.phone,
+          address: existingVendor.address,
+          is_open: existingVendor.is_open,
+          is_otp_verified: existingVendor.is_otp_verified,
+          approval_status: existingVendor.approval_status,
+          rejection_reason: existingVendor.rejection_reason,
+          rating: existingVendor.rating,
+          commission_rate: existingVendor.commission_rate,
+          documents: existingVendor.documents_json,
+          document_verification: existingVendor.document_verification_json,
+          bank_details: existingVendor.bank_details_json
+        },
+        message: 'Welcome back! Logged in successfully via OTP.'
+      });
+    }
+
     res.json({
       success: true,
       is_verified: true,
-      message: 'Mobile number verified successfully!'
+      exists: false,
+      message: 'Mobile number verified! Complete your store registration.'
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -152,11 +213,14 @@ async function registerVendor(req, res) {
     } = req.body;
 
     const contactName = owner_name || req.body.name || req.body.contact_person || business_name;
+    const cleanPhoneDigits = String(phone || '').replace(/\D/g, '');
+    const resolvedEmail = (email && String(email).trim()) ? String(email).trim() : `${cleanPhoneDigits || Date.now()}@partner.xwayu.com`;
+    const resolvedPassword = (password && String(password).trim()) ? String(password).trim() : `Xwayu@${cleanPhoneDigits || '2026'}`;
 
-    if (!business_name || !email || !phone || !password) {
+    if (!business_name || !phone) {
       return res.status(400).json({
         success: false,
-        message: 'Business name, email, phone and password are required'
+        message: 'Business name and phone number are required'
       });
     }
 
@@ -200,13 +264,13 @@ async function registerVendor(req, res) {
       documentVerification[doc.key] = processedDocuments[doc.key] ? 'pending' : 'missing';
     });
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(resolvedPassword, 10);
 
     if (db.isConnected()) {
       // Create user
       const userResult = await db.query(
         'INSERT INTO users (name, email, phone, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?)',
-        [business_name, email, phone, passwordHash, 'vendor', 'active']
+        [business_name, resolvedEmail, phone, passwordHash, 'vendor', 'active']
       );
       const userId = userResult.insertId;
 
@@ -219,7 +283,7 @@ async function registerVendor(req, res) {
           documents_json, document_verification_json, bank_details_json
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'pending', ?, ?, ?)`,
         [
-          userId, business_name, legal_name || null, vendor_category, vendor_category, email, phone, description || null,
+          userId, business_name, legal_name || null, vendor_category, vendor_category, resolvedEmail, phone, description || null,
           address, city, state, pincode, latitude, longitude, service_radius_km,
           opening_time, closing_time, 1,
           JSON.stringify(processedDocuments), JSON.stringify(documentVerification), JSON.stringify(bank_details)
@@ -237,7 +301,7 @@ async function registerVendor(req, res) {
         contact_person: contactName,
         business_type: vendor_category,
         vendor_category,
-        email,
+        email: resolvedEmail,
         phone,
         description: description || '',
         address,

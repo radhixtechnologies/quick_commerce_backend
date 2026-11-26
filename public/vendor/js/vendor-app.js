@@ -73,26 +73,66 @@ function hideAuthOverlay() {
   if (overlay) overlay.style.display = 'none';
 }
 
-function switchAuthTab(tab) {
-  const tabLogin = document.getElementById('tabBtnLogin');
-  const tabReg = document.getElementById('tabBtnRegister');
-  const formLogin = document.getElementById('formVendorLogin');
-  const formReg = document.getElementById('formVendorRegister');
-  const alertEl = document.getElementById('authAlertBox');
-  if (alertEl) alertEl.className = 'auth-alert';
+let webAuthCategory = 'food';
+let webAuthPhone = '';
+let webOtpCountdown = null;
+let webWizLat = 28.6139;
+let webWizLng = 77.2090;
+let webWizSubtype = '';
+let webWizTags = [];
 
-  if (tab === 'login') {
-    if (tabLogin) tabLogin.classList.add('active');
-    if (tabReg) tabReg.classList.remove('active');
-    if (formLogin) formLogin.style.display = 'block';
-    if (formReg) formReg.style.display = 'none';
-  } else {
-    if (tabLogin) tabLogin.classList.remove('active');
-    if (tabReg) tabReg.classList.add('active');
-    if (formLogin) formLogin.style.display = 'none';
-    if (formReg) formReg.style.display = 'block';
+const WEB_CATEGORY_CONFIG = {
+  food: {
+    title: 'Restaurant Onboarding',
+    bizLabel: 'Restaurant Name *',
+    subLabel: 'Pure veg restaurant? *',
+    subA: 'Yes, Pure Veg',
+    subB: 'No, Mixed Menu',
+    tagsLabel: 'Cuisines (Select all that apply)',
+    tags: ['North Indian', 'South Indian', 'Chinese', 'Italian', 'Fast Food', 'Bakery', 'Desserts', 'Beverages'],
+    licLabel: 'FSSAI License Number'
+  },
+  grocery: {
+    title: 'Grocery Store Onboarding',
+    bizLabel: 'Store / Mart Name *',
+    subLabel: 'Store format *',
+    subA: 'Kirana / Mini Mart',
+    subB: 'Supermarket',
+    tagsLabel: 'Store Categories',
+    tags: ['Fresh Vegetables', 'Fruits', 'Dairy & Eggs', 'Staples & Grains', 'Snacks & Drinks', 'Personal Care', 'Household'],
+    licLabel: 'Shop Act / FSSAI Number'
+  },
+  ecommerce: {
+    title: 'E-Commerce Seller Onboarding',
+    bizLabel: 'Brand / Store Name *',
+    subLabel: 'Seller type *',
+    subA: 'D2C Brand',
+    subB: 'Multi-Brand Reseller',
+    tagsLabel: 'Product Categories',
+    tags: ['Fashion', 'Electronics', 'Home & Kitchen', 'Beauty & Care', 'Footwear', 'Accessories', 'Sports'],
+    licLabel: 'Trade / Udyam Number'
+  },
+  service_based: {
+    title: 'Service Partner Onboarding',
+    bizLabel: 'Agency / Center Name *',
+    subLabel: 'Service mode *',
+    subA: 'Home Visit Only',
+    subB: 'Visit + Studio',
+    tagsLabel: 'Services Offered',
+    tags: ['AC & Appliance Repair', 'Electrician', 'Plumbing', 'Salon & Grooming', 'Home Cleaning', 'Carpentry', 'Pest Control'],
+    licLabel: 'Skill / Trade Certificate No.'
+  },
+  medicines: {
+    title: 'Pharmacy Onboarding',
+    bizLabel: 'Pharmacy / Medical Store Name *',
+    subLabel: 'Pharmacy type *',
+    subA: 'Retail Chemist',
+    subB: '24x7 Pharmacy',
+    tagsLabel: 'Pharmacy Specialities',
+    tags: ['Prescription Meds', 'OTC & Wellness', 'Baby Care', 'Surgical & Devices', 'Ayurveda', 'Vitamins'],
+    licLabel: 'Drug License (Form 20/21) No.'
   }
-}
+};
 
 function showAuthAlert(msg, type = 'error') {
   const el = document.getElementById('authAlertBox');
@@ -101,72 +141,274 @@ function showAuthAlert(msg, type = 'error') {
   el.innerText = msg;
 }
 
-async function handleVendorLogin(e) {
-  if (e) e.preventDefault();
-  const btn = document.getElementById('btnSubmitLogin');
-  const identifier = document.getElementById('authLoginIdentifier').value.trim();
-  const password = document.getElementById('authLoginPassword').value.trim();
+function clearAuthAlert() {
+  const el = document.getElementById('authAlertBox');
+  if (el) el.className = 'auth-alert';
+}
 
-  if (!identifier || !password) {
-    showAuthAlert('Please enter both Email/Phone and Password', 'error');
+function selectVendorCategory(cat) {
+  webAuthCategory = cat;
+  document.querySelectorAll('.web-cat-pill').forEach((btn) => {
+    const active = btn.getAttribute('data-cat') === cat;
+    btn.style.border = active ? '1.5px solid #FF6B00' : '1px solid #E5E7EB';
+    btn.style.background = active ? '#FFF7ED' : '#FFFFFF';
+    btn.style.color = active ? '#FF6B00' : '#4B5563';
+    btn.style.fontWeight = active ? '700' : '600';
+  });
+}
+
+function completeVendorWebLogin(token, vendor, toastMsg) {
+  currentVendorToken = token;
+  currentVendor = vendor;
+  currentVendorId = vendor.id;
+  currentCategory = vendor.vendor_category || vendor.business_type || webAuthCategory || 'food';
+
+  localStorage.setItem('vendor_token', currentVendorToken);
+  localStorage.setItem('vendor_profile', JSON.stringify(currentVendor));
+
+  updateHeaderVendorInfo(currentVendor);
+  hideAuthOverlay();
+  initSocket();
+  loadAllVendorDataFromBackend();
+  showToastNotification(toastMsg || `✅ Welcome back, ${currentVendor.business_name}!`);
+}
+
+function backToPhoneStep() {
+  clearAuthAlert();
+  document.getElementById('vendorStepPhone').style.display = 'block';
+  document.getElementById('vendorStepOtp').style.display = 'none';
+  document.getElementById('vendorStepWizard').style.display = 'none';
+  document.getElementById('authHeaderTitle').innerText = 'Partner Login';
+  document.getElementById('authHeaderSubtitle').innerText = 'Login or register with your mobile number via OTP';
+}
+
+function startWebOtpTimer() {
+  if (webOtpCountdown) clearInterval(webOtpCountdown);
+  let sec = 40;
+  const txt = document.getElementById('webOtpTimerText');
+  const btn = document.getElementById('btnWebResendOtp');
+  if (txt) { txt.style.display = 'inline'; txt.innerText = `Resend in 00:${sec}`; }
+  if (btn) btn.style.display = 'none';
+  webOtpCountdown = setInterval(() => {
+    sec--;
+    if (sec > 0) {
+      if (txt) txt.innerText = `Resend in 00:${String(sec).padStart(2, '0')}`;
+    } else {
+      clearInterval(webOtpCountdown);
+      if (txt) txt.style.display = 'none';
+      if (btn) btn.style.display = 'inline';
+    }
+  }, 1000);
+}
+
+async function sendVendorOtp(e, isResend = false) {
+  if (e) e.preventDefault();
+  clearAuthAlert();
+  const phone = (document.getElementById('authPhoneInput')?.value || webAuthPhone).replace(/\D/g, '').slice(-10);
+  if (phone.length < 10) {
+    showAuthAlert('Please enter a valid 10-digit mobile number', 'error');
     return;
   }
-
-  btn.disabled = true;
-  btn.innerHTML = '<span>⏳ Logging in...</span>';
+  webAuthPhone = phone;
+  const btn = document.getElementById('btnSendOtp');
+  if (btn && !isResend) { btn.disabled = true; btn.innerHTML = '<span>⏳ Sending OTP...</span>'; }
 
   try {
-    const res = await fetch(`${API_BASE}/vendor/auth/login`, {
+    const res = await fetch(`${API_BASE}/vendor/auth/send-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emailOrPhone: identifier, password })
+      body: JSON.stringify({ phone, category: webAuthCategory })
     });
     const data = await res.json();
-
-    if (res.ok && data.success && data.vendor) {
-      currentVendorToken = data.token;
-      currentVendor = data.vendor;
-      currentVendorId = data.vendor.id;
-      currentCategory = data.vendor.vendor_category || data.vendor.business_type || 'food';
-
-      localStorage.setItem('vendor_token', currentVendorToken);
-      localStorage.setItem('vendor_profile', JSON.stringify(currentVendor));
-
-      updateHeaderVendorInfo(currentVendor);
-      hideAuthOverlay();
-      initSocket();
-      loadAllVendorDataFromBackend();
-
-      showToastNotification(`✅ Welcome back, ${currentVendor.business_name}!`);
+    if (res.ok && data.success) {
+      document.getElementById('vendorStepPhone').style.display = 'none';
+      document.getElementById('vendorStepOtp').style.display = 'block';
+      document.getElementById('vendorStepWizard').style.display = 'none';
+      document.getElementById('otpTargetPhone').innerText = `+91 ${phone}`;
+      document.getElementById('authHeaderTitle').innerText = 'Verify Your Number';
+      document.getElementById('authHeaderSubtitle').innerText = data.message || `OTP sent to +91 ${phone}`;
+      startWebOtpTimer();
     } else {
-      showAuthAlert(data.message || 'Invalid login credentials. Please check phone/password.', 'error');
+      showAuthAlert(data.message || 'Could not send OTP', 'error');
     }
   } catch (err) {
     showAuthAlert(`Connection failed: ${err.message}`, 'error');
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<span>Log In to Partner Dashboard ➔</span>';
+    if (btn && !isResend) { btn.disabled = false; btn.innerHTML = '<span>Send OTP ➔</span>'; }
   }
 }
 
-async function handleVendorRegister(e) {
+async function verifyVendorOtp(e) {
   if (e) e.preventDefault();
-  const btn = document.getElementById('btnSubmitRegister');
-  const business_name = document.getElementById('authRegBusinessName').value.trim();
-  const owner_name = document.getElementById('authRegOwnerName').value.trim();
-  const vendor_category = document.getElementById('authRegCategory').value;
-  const phone = document.getElementById('authRegPhone').value.trim();
-  const email = document.getElementById('authRegEmail').value.trim();
-  const password = document.getElementById('authRegPassword').value.trim();
-  const address = document.getElementById('authRegAddress').value.trim();
-
-  if (!business_name || !email || !phone || !password || !address) {
-    showAuthAlert('Please fill in all mandatory fields', 'error');
+  clearAuthAlert();
+  const otp = (document.getElementById('authOtpInput')?.value || '').trim();
+  if (otp.length !== 6) {
+    showAuthAlert('Please enter the 6-digit OTP', 'error');
     return;
   }
-
+  const btn = document.getElementById('btnVerifyOtp');
   btn.disabled = true;
-  btn.innerHTML = '<span>⏳ Creating Partner Account...</span>';
+  btn.innerHTML = '<span>⏳ Verifying...</span>';
+
+  try {
+    const res = await fetch(`${API_BASE}/vendor/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: webAuthPhone, otp })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      if (data.exists && data.token && data.vendor) {
+        completeVendorWebLogin(data.token, data.vendor, `✅ Welcome back, ${data.vendor.business_name}!`);
+        return;
+      }
+      // New partner -> Launch 4-Step Category-Adaptive Onboarding Wizard
+      initWebWizardForCategory(webAuthCategory);
+    } else {
+      showAuthAlert(data.message || 'Invalid OTP code. Please try again.', 'error');
+    }
+  } catch (err) {
+    showAuthAlert(`Verification error: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>Verify & Continue ➔</span>';
+  }
+}
+
+function initWebWizardForCategory(cat) {
+  const cfg = WEB_CATEGORY_CONFIG[cat] || WEB_CATEGORY_CONFIG.food;
+  webWizSubtype = cfg.subA;
+  webWizTags = [];
+  document.getElementById('vendorStepOtp').style.display = 'none';
+  document.getElementById('vendorStepWizard').style.display = 'block';
+  document.getElementById('authHeaderTitle').innerText = cfg.title;
+  document.getElementById('authHeaderSubtitle').innerText = `Verified: +91 ${webAuthPhone}`;
+  document.getElementById('wizBizNameLabel').innerText = cfg.bizLabel;
+  document.getElementById('wizSubtypeLabel').innerText = cfg.subLabel;
+  document.getElementById('wizSubBtnA').innerText = cfg.subA;
+  document.getElementById('wizSubBtnB').innerText = cfg.subB;
+  document.getElementById('wizTagsLabel').innerText = cfg.tagsLabel;
+  document.getElementById('wizLicLabel').innerText = cfg.licLabel;
+  selectWizSubtype('A');
+
+  const wrap = document.getElementById('wizTagsWrap');
+  wrap.innerHTML = cfg.tags.map((t) =>
+    `<button type="button" onclick="toggleWizTag(this, '${t.replace(/'/g, "\\'")}')" style="padding:6px 12px; border-radius:18px; border:1px solid #E5E7EB; background:#FFF; color:#181A20; font-size:12px; font-weight:600; cursor:pointer;">${t}</button>`
+  ).join('');
+  wizardGoToStep(1);
+}
+
+function selectWizSubtype(which) {
+  const cfg = WEB_CATEGORY_CONFIG[webAuthCategory] || WEB_CATEGORY_CONFIG.food;
+  webWizSubtype = which === 'A' ? cfg.subA : cfg.subB;
+  const a = document.getElementById('wizSubBtnA');
+  const b = document.getElementById('wizSubBtnB');
+  [ [a, which === 'A'], [b, which === 'B'] ].forEach(([el, active]) => {
+    el.style.border = active ? '1.5px solid #FF6B00' : '1px solid #E5E7EB';
+    el.style.background = active ? '#FFF7ED' : '#FFFFFF';
+    el.style.color = active ? '#FF6B00' : '#181A20';
+  });
+}
+
+function toggleWizTag(btn, tag) {
+  const idx = webWizTags.indexOf(tag);
+  if (idx >= 0) {
+    webWizTags.splice(idx, 1);
+    btn.style.background = '#FFFFFF';
+    btn.style.color = '#181A20';
+    btn.style.borderColor = '#E5E7EB';
+  } else {
+    webWizTags.push(tag);
+    btn.style.background = '#FF6B00';
+    btn.style.color = '#FFFFFF';
+    btn.style.borderColor = '#FF6B00';
+  }
+}
+
+function wizardGoToStep(step) {
+  clearAuthAlert();
+  if (step === 2) {
+    const biz = document.getElementById('wizBizName').value.trim();
+    const owner = document.getElementById('wizOwnerName').value.trim();
+    if (!biz || !owner) {
+      showAuthAlert('Please enter Business Name and Owner Full Name', 'error');
+      return;
+    }
+  }
+  if (step === 3) {
+    const a1 = document.getElementById('wizAddr1').value.trim();
+    const city = document.getElementById('wizCity').value.trim();
+    if (!a1 || !city) {
+      showAuthAlert('Please enter Address Line 1 and City (or use GPS button)', 'error');
+      return;
+    }
+  }
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById(`wizPage${i}`).style.display = i === step ? 'block' : 'none';
+    document.getElementById(`wizBar${i}`).style.background = i <= step ? '#FF6B00' : '#E5E7EB';
+  }
+  document.getElementById('wizStepLabel').innerText = `STEP ${step} OF 4`;
+  document.getElementById('wizPctBadge').innerText = `${step * 25}%`;
+
+  if (step === 4) {
+    const summary = `
+      <strong>Business:</strong> ${document.getElementById('wizBizName').value.trim()} (${webWizSubtype})<br>
+      <strong>Owner:</strong> ${document.getElementById('wizOwnerName').value.trim()} • +91 ${webAuthPhone}<br>
+      <strong>Address:</strong> ${document.getElementById('wizAddr1').value.trim()}, ${document.getElementById('wizCity').value.trim()}, ${document.getElementById('wizState').value.trim()} ${document.getElementById('wizPincode').value.trim()}<br>
+      <strong>Specializations:</strong> ${webWizTags.length ? webWizTags.join(', ') : '-'}
+    `;
+    document.getElementById('wizReviewSummary').innerHTML = summary;
+  }
+}
+
+function useWebCurrentLocation() {
+  const btn = document.getElementById('btnWebGps');
+  if (!navigator.geolocation) {
+    showAuthAlert('Browser GPS is not supported', 'error');
+    return;
+  }
+  btn.disabled = true;
+  btn.innerText = '⏳ Fetching GPS & Address...';
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    webWizLat = pos.coords.latitude;
+    webWizLng = pos.coords.longitude;
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${webWizLat}&lon=${webWizLng}&addressdetails=1`);
+      const d = await r.json();
+      const addr = d.address || {};
+      const line1 = [addr.house_number, addr.building, addr.road, addr.neighbourhood].filter(Boolean).join(', ');
+      if (line1) document.getElementById('wizAddr1').value = line1;
+      else if (d.display_name) document.getElementById('wizAddr1').value = d.display_name.split(',').slice(0, 2).join(', ');
+      if (addr.city || addr.town || addr.village) document.getElementById('wizCity').value = addr.city || addr.town || addr.village;
+      if (addr.state) document.getElementById('wizState').value = addr.state;
+      if (addr.postcode) document.getElementById('wizPincode').value = addr.postcode;
+      showAuthAlert('📍 Address auto-filled from your GPS location!', 'success');
+    } catch (_) {
+      showAuthAlert('GPS coordinates captured!', 'success');
+    } finally {
+      btn.disabled = false;
+      btn.innerText = '📍 Use Current GPS Location (Auto-fill Address)';
+    }
+  }, (err) => {
+    btn.disabled = false;
+    btn.innerText = '📍 Use Current GPS Location (Auto-fill Address)';
+    showAuthAlert(`Location error: ${err.message}`, 'error');
+  });
+}
+
+async function submitWebWizardRegistration() {
+  clearAuthAlert();
+  const btn = document.getElementById('btnWizSubmit');
+  btn.disabled = true;
+  btn.innerText = '⏳ Submitting Application...';
+
+  const business_name = document.getElementById('wizBizName').value.trim();
+  const owner_name = document.getElementById('wizOwnerName').value.trim();
+  const email = document.getElementById('wizEmail').value.trim() || `${webAuthPhone}@partner.xwayu.com`;
+  const addr1 = document.getElementById('wizAddr1').value.trim();
+  const city = document.getElementById('wizCity').value.trim() || 'Indore';
+  const state = document.getElementById('wizState').value.trim() || 'Madhya Pradesh';
+  const pincode = document.getElementById('wizPincode').value.trim() || '452001';
 
   try {
     const res = await fetch(`${API_BASE}/vendor/auth/register`, {
@@ -175,22 +417,37 @@ async function handleVendorRegister(e) {
       body: JSON.stringify({
         business_name,
         owner_name,
-        vendor_category,
-        phone,
         email,
-        password,
-        address,
+        phone: webAuthPhone,
+        password: `Xwayu@${webAuthPhone}`,
+        vendor_category: webAuthCategory,
+        description: [webWizSubtype, webWizTags.join(', '), document.getElementById('wizOpen24x7').checked ? 'Open 24x7' : ''].filter(Boolean).join(' • '),
+        address: [addr1, city, state, pincode].filter(Boolean).join(', '),
+        city,
+        state,
+        pincode,
+        latitude: webWizLat,
+        longitude: webWizLng,
         is_phone_verified: true,
-        bypass_otp: true
+        bypass_otp: true,
+        documents: {
+          pan_number: document.getElementById('wizPanNo').value.trim().toUpperCase(),
+          pan_name: document.getElementById('wizPanName').value.trim(),
+          gst_number: document.getElementById('wizGstCheck').checked ? document.getElementById('wizGstNo').value.trim().toUpperCase() : '',
+          license_number: document.getElementById('wizLicNo').value.trim(),
+          license_expiry: document.getElementById('wizLicExp').value
+        },
+        bank_details: {
+          account_holder: document.getElementById('wizBankHolder').value.trim(),
+          account_no: document.getElementById('wizBankAcc').value.trim(),
+          ifsc: document.getElementById('wizBankIfsc').value.trim().toUpperCase(),
+          upi_id: document.getElementById('wizBankUpi').value.trim()
+        }
       })
     });
     const data = await res.json();
-
-    if (res.ok && data.success) {
-      switchAuthTab('login');
-      document.getElementById('authLoginIdentifier').value = email;
-      document.getElementById('authLoginPassword').value = '';
-      showAuthAlert(`Store account "${business_name}" created! Please enter your password to log in.`, 'success');
+    if (res.ok && data.success && data.token && data.vendor) {
+      completeVendorWebLogin(data.token, data.vendor, `🎉 Store "${business_name}" created & logged in!`);
     } else {
       showAuthAlert(data.message || 'Registration failed. Please check details.', 'error');
     }
@@ -198,7 +455,7 @@ async function handleVendorRegister(e) {
     showAuthAlert(`Registration error: ${err.message}`, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<span>Create Store Partner Account ➔</span>';
+    btn.innerText = 'Submit Application ➔';
   }
 }
 
@@ -247,7 +504,7 @@ function logoutVendor(confirmPrompt = true) {
   if (catalogTable) catalogTable.innerHTML = '';
 
   showAuthOverlay();
-  switchAuthTab('login');
+  backToPhoneStep();
   showAuthAlert('You have been logged out successfully. Please log in to continue.', 'success');
 }
 
