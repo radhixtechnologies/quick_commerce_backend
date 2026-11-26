@@ -761,6 +761,7 @@ async function createProduct(req, res) {
       raw_image_url,
       ai_generated_image_url,
       ai_generated_video_url,
+      model_3d_url,
       images = [],
       variations = [],
       addons = []
@@ -789,6 +790,7 @@ async function createProduct(req, res) {
       raw_image_url: raw_image_url || galleryImages[0] || null,
       ai_generated_image_url: ai_generated_image_url || null,
       ai_generated_video_url: ai_generated_video_url || null,
+      model_3d_url: model_3d_url || null,
       images: galleryImages,
       variations,
       addons,

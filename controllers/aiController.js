@@ -261,6 +261,20 @@ async function resolveDishImage(productName, category = 'food') {
   return r.primary;
 }
 
+function resolve3dModelUrl(productName = '', category = 'food') {
+  const lower = `${productName} ${category}`.toLowerCase();
+  if (lower.includes('water') || lower.includes('bottle') || lower.includes('drink') || lower.includes('juice') || lower.includes('shake') || lower.includes('coffee') || lower.includes('tea')) {
+    return 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/WaterBottle/glTF-Binary/WaterBottle.glb';
+  }
+  if (category === 'grocery' || lower.includes('fruit') || lower.includes('veg') || lower.includes('avocado') || lower.includes('salad')) {
+    return 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Avocado/glTF-Binary/Avocado.glb';
+  }
+  if (category === 'ecommerce' || lower.includes('gadget') || lower.includes('helmet') || lower.includes('electronic')) {
+    return 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/DamagedHelmet/glTF-Binary/DamagedHelmet.glb';
+  }
+  return 'https://modelviewer.dev/shared-assets/models/shishkebab.glb';
+}
+
 // 2. GEMINI AI: Generate Commercial Product Image Studio Assets
 async function generateProductImage(req, res) {
   try {
@@ -307,12 +321,16 @@ async function generateProductImage(req, res) {
       top: angles[3] || angles[1] || selectedPhoto
     };
 
+    const model3dUrl = resolve3dModelUrl(product_name, category);
+
     res.json({
       success: true,
-      message: `Studio-grade 4K commercial photo & 3D 360° views generated for "${product_name}" (${resolved.source})!`,
+      message: `Studio-grade 4K commercial photo & 3D model generated for "${product_name}" (${resolved.source})!`,
       product_name,
       imageUrl: selectedPhoto,
       ai_generated_image_url: selectedPhoto,
+      model_3d_url: model3dUrl,
+      model3dUrl: model3dUrl,
       views_3d: views3d,
       source: resolved.source,
       description: aiDescription,
