@@ -1956,24 +1956,109 @@ async function renderBanners(container) {
   container.innerHTML = `
     <div class="card-panel">
       <div class="panel-header">
-        <h3>Promotional App Banners (${banners.length})</h3>
-        <button class="btn-primary" onclick="showToast('Upload banner via API or Media Manager')">+ Upload Banner</button>
+        <div>
+          <h3>Category-Wise App Banners (${banners.length})</h3>
+          <p style="font-size:12px; color:var(--text-muted); margin-top:2px;">Banners added here automatically appear in the Vendor App for the selected category.</p>
+        </div>
+        <button class="btn-primary" onclick="openModal('addBannerModal')">+ Add Category Banner</button>
       </div>
-      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px;">
-        ${banners.map(b => `
-          <div style="border:1px solid var(--border-color); border-radius:var(--radius-md); overflow:hidden;">
-            <div style="height:140px; background:linear-gradient(135deg, #0F2942, #2E9E44); display:flex; align-items:center; justify-content:center; color:white; font-size:18px; font-weight:800; padding:20px; text-align:center;">
-              ${b.title}
+      ${banners.length === 0 ? `
+        <div style="text-align:center; padding:40px 20px; color:var(--text-muted); border:1px dashed var(--border-color); border-radius:12px;">
+          <div style="font-size:36px; margin-bottom:8px;">🖼️</div>
+          <p style="font-weight:700; color:var(--text-dark);">No banners added yet</p>
+          <p style="font-size:12.5px; margin-top:4px;">Click "+ Add Category Banner" to publish promotional banners to the Vendor App.</p>
+        </div>
+      ` : `
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px;">
+          ${banners.map(b => `
+            <div style="border:1px solid var(--border-color); border-radius:var(--radius-md); overflow:hidden; background:white;">
+              <div style="height:140px; position:relative; background:linear-gradient(135deg, #3B2314, #F97316); display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; padding:16px; text-align:center;">
+                ${b.image_url ? `<img src="${b.image_url}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0.88;" onerror="this.style.display='none';" />` : ''}
+                <div style="position:relative; z-index:2; text-shadow:0 2px 6px rgba(0,0,0,0.75);">
+                  <div style="font-size:17px; font-weight:800;">${b.title || ''}</div>
+                  ${b.subtitle ? `<div style="font-size:12px; margin-top:4px; opacity:0.95;">${b.subtitle}</div>` : ''}
+                </div>
+                <span style="position:absolute; top:10px; left:10px; z-index:3; background:rgba(0,0,0,0.7); color:#F59E0B; font-size:10px; font-weight:800; padding:3px 8px; border-radius:12px; text-transform:uppercase;">
+                  ${b.module_type || 'ALL'}
+                </span>
+              </div>
+              <div style="padding:12px 14px; display:flex; justify-content:space-between; align-items:center;">
+                <span class="status-badge ${b.is_active ? 'badge-active' : 'badge-cancelled'}">${b.is_active ? 'ACTIVE' : 'INACTIVE'}</span>
+                <div style="display:flex; gap:8px;">
+                  <button class="btn-outline" style="padding:4px 10px; font-size:11px;" onclick="toggleBannerAction(${b.id}, ${b.is_active ? 0 : 1})">
+                    ${b.is_active ? 'Pause' : 'Activate'}
+                  </button>
+                  <button class="btn-outline" style="padding:4px 10px; font-size:11px; color:#DC2626; border-color:#FCA5A5;" onclick="deleteBannerAction(${b.id})">
+                    Delete
+                  </button>
+                </div>
+              </div>
             </div>
-            <div style="padding:14px; display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:12px; font-weight:600; text-transform:capitalize;">${(b.banner_type || 'home').replace('_', ' ')} Banner</span>
-              <span class="status-badge ${b.is_active ? 'badge-active' : 'badge-cancelled'}">${b.is_active ? 'ACTIVE' : 'INACTIVE'}</span>
-            </div>
-          </div>
-        `).join('')}
-      </div>
+          `).join('')}
+        </div>
+      `}
     </div>
   `;
+}
+
+function handleBannerFileSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const urlInput = document.getElementById('newBannerImageUrl');
+    if (urlInput) urlInput.value = e.target.result;
+    showToast('Banner image attached!');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveBannerAction() {
+  const module_type = document.getElementById('newBannerModule').value;
+  const title = document.getElementById('newBannerTitle').value.trim();
+  const subtitle = document.getElementById('newBannerSubtitle').value.trim();
+  const image_url = document.getElementById('newBannerImageUrl').value.trim();
+
+  if (!title) return showToast('Banner title is required');
+
+  try {
+    await apiRequest('/admin/banners', {
+      method: 'POST',
+      body: JSON.stringify({ module_type, title, subtitle, image_url, is_active: 1 })
+    });
+    showToast('Category banner published to Vendor App!');
+    closeModal('addBannerModal');
+    document.getElementById('newBannerTitle').value = '';
+    document.getElementById('newBannerSubtitle').value = '';
+    document.getElementById('newBannerImageUrl').value = '';
+    loadModule('banners');
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+async function toggleBannerAction(id, is_active) {
+  try {
+    await apiRequest(`/admin/banners/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_active })
+    });
+    showToast('Banner status updated');
+    loadModule('banners');
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+async function deleteBannerAction(id) {
+  if (!confirm('Delete this banner?')) return;
+  try {
+    await apiRequest(`/admin/banners/${id}`, { method: 'DELETE' });
+    showToast('Banner deleted');
+    loadModule('banners');
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
 }
 
 // -----------------------------------------------------------------------------

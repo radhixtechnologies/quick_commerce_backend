@@ -844,9 +844,90 @@ async function getAllBanners(req, res) {
     if (db.isConnected()) {
       banners = await db.query('SELECT * FROM banners ORDER BY sort_order ASC, id DESC');
     } else {
-      banners = db.memoryStore.banners;
+      banners = db.memoryStore.banners || [];
     }
     res.json({ success: true, count: banners.length, banners });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function createBanner(req, res) {
+  try {
+    const {
+      title,
+      subtitle = '',
+      image_url = '',
+      module_type = 'all',
+      banner_type = 'home',
+      is_active = 1
+    } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ success: false, message: 'Banner title is required' });
+    }
+
+    const normModule = module_type === 'service_based' ? 'services' : module_type;
+
+    if (db.isConnected()) {
+      const result = await db.query(
+        'INSERT INTO banners (title, subtitle, image_url, module_type, banner_type, is_active, sort_order) VALUES (?, ?, ?, ?, ?, ?, 0)',
+        [title, subtitle, image_url, normModule, banner_type, is_active ? 1 : 0]
+      );
+      return res.status(201).json({
+        success: true,
+        message: 'Banner created successfully!',
+        banner: { id: result.insertId, title, subtitle, image_url, module_type: normModule, banner_type, is_active: 1 }
+      });
+    }
+
+    if (!db.memoryStore.banners) db.memoryStore.banners = [];
+    const newBanner = {
+      id: Date.now(),
+      title,
+      subtitle,
+      image_url,
+      module_type: normModule,
+      banner_type,
+      is_active: is_active ? 1 : 0,
+      created_at: new Date().toISOString()
+    };
+    db.memoryStore.banners.unshift(newBanner);
+
+    const io = req.app.get('io');
+    if (io) io.emit('banner_updated', newBanner);
+
+    res.status(201).json({ success: true, message: 'Banner created successfully!', banner: newBanner });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function toggleBannerStatus(req, res) {
+  try {
+    const { id } = req.params;
+    const { is_active } = req.body;
+    if (db.isConnected()) {
+      await db.query('UPDATE banners SET is_active = ? WHERE id = ?', [is_active ? 1 : 0, id]);
+    } else {
+      const b = (db.memoryStore.banners || []).find((item) => item.id == id);
+      if (b) b.is_active = is_active ? 1 : 0;
+    }
+    res.json({ success: true, message: 'Banner status updated' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function deleteBanner(req, res) {
+  try {
+    const { id } = req.params;
+    if (db.isConnected()) {
+      await db.query('DELETE FROM banners WHERE id = ?', [id]);
+    } else {
+      db.memoryStore.banners = (db.memoryStore.banners || []).filter((b) => b.id != id);
+    }
+    res.json({ success: true, message: 'Banner deleted successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -951,6 +1032,9 @@ module.exports = {
   getAllCoupons,
   createCoupon,
   getAllBanners,
+  createBanner,
+  toggleBannerStatus,
+  deleteBanner,
   sendBroadcastNotification,
   getReport,
   getAllReviews,

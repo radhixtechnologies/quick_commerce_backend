@@ -441,8 +441,47 @@
     </div>
   </div>
 
+  <!-- MODAL 5: ADD CATEGORY BANNER -->
+  <div class="modal-backdrop" id="addBannerModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Add Category App Banner</h3>
+        <button class="modal-close" onclick="closeModal('addBannerModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Target App Category *</label>
+          <select class="form-control" id="newBannerModule">
+            <option value="all">🌐 All Categories</option>
+            <option value="food">🍔 Food & Restaurants</option>
+            <option value="grocery">🥦 Fresh Grocery</option>
+            <option value="ecommerce">🛍️ E-Commerce Retail</option>
+            <option value="services">🛠️ Home Services</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Banner Headline Title *</label>
+          <input type="text" class="form-control" id="newBannerTitle" placeholder="e.g. Flat 30% Off Commission This Weekend!" />
+        </div>
+        <div class="form-group">
+          <label>Subtitle / Offer Details</label>
+          <input type="text" class="form-control" id="newBannerSubtitle" placeholder="e.g. Boost your store orders with featured placement" />
+        </div>
+        <div class="form-group">
+          <label>Banner Image URL (or Upload Image)</label>
+          <input type="text" class="form-control" id="newBannerImageUrl" placeholder="https://..." />
+          <input type="file" accept="image/*" style="margin-top:8px; font-size:12px;" onchange="handleBannerFileSelect(this)" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeModal('addBannerModal')">Cancel</button>
+        <button class="btn-primary" onclick="saveBannerAction()">Publish Banner</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MAIN APP SCRIPT WITH CACHE-BUSTER -->
-  <script src="/admin/js/admin-app.js?v=2.5"></script>
+  <script src="/admin/js/admin-app.js?v=2.6"></script>
 
 </body>
 </html>

@@ -1088,6 +1088,30 @@ async function deleteVendorAccount(req, res) {
   }
 }
 
+async function getVendorBanners(req, res) {
+  try {
+    let moduleType = (req.query.module_type || req.user?.vendor_category || 'all').toLowerCase().trim();
+    if (moduleType === 'service_based') moduleType = 'services';
+
+    let banners = [];
+    if (db.isConnected()) {
+      banners = await db.query(
+        'SELECT * FROM banners WHERE is_active = 1 AND (module_type = ? OR module_type = ?) ORDER BY sort_order ASC, id DESC',
+        [moduleType, 'all']
+      );
+    } else {
+      banners = (db.memoryStore.banners || []).filter((b) => {
+        if (b.is_active === 0) return false;
+        const m = (b.module_type || 'all').toLowerCase();
+        return moduleType === 'all' || m === 'all' || m === moduleType;
+      });
+    }
+    res.json({ success: true, count: banners.length, banners });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -1111,5 +1135,6 @@ module.exports = {
   getVendorNotifications,
   updateNotificationPreferences,
   submitContactUs,
-  deleteVendorAccount
+  deleteVendorAccount,
+  getVendorBanners
 };

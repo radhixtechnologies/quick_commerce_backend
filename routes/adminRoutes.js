@@ -54,6 +54,9 @@ router.post('/coupons', adminController.createCoupon);
 
 // 4.12 Banners
 router.get('/banners', adminController.getAllBanners);
+router.post('/banners', adminController.createBanner);
+router.patch('/banners/:id/status', adminController.toggleBannerStatus);
+router.delete('/banners/:id', adminController.deleteBanner);
 
 // 4.13 Notifications
 router.post('/notifications/broadcast', adminController.sendBroadcastNotification);

@@ -45,5 +45,6 @@ router.get('/notifications', vendorController.getVendorNotifications);
 router.patch('/notifications/preferences', vendorController.updateNotificationPreferences);
 router.post('/contact', vendorController.submitContactUs);
 router.delete('/account', vendorController.deleteVendorAccount);
+router.get('/banners', vendorController.getVendorBanners);
 
 module.exports = router;
