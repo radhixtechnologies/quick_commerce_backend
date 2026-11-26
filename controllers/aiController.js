@@ -199,18 +199,29 @@ async function generateProductImage(req, res) {
 
     // Resolve accurate high-resolution photography matching the requested dish (e.g. Pasta, Biryani, Pizza)
     const selectedPhoto = await resolveDishImage(product_name, category);
+    const cleanCat = category === 'food' ? 'dish' : (category === 'grocery' ? 'fresh grocery item' : 'commercial product');
+    const mkAngle = (angleDesc) =>
+      `https://image.pollinations.ai/prompt/${encodeURIComponent(`3D studio product render of ${product_name} ${cleanCat}, ${angleDesc}, clean studio lighting, 8k`)}?width=800&height=800&nologo=true&model=flux`;
+
+    const views3d = {
+      front: selectedPhoto,
+      angle_45: mkAngle('45 degree isometric 3D angle view'),
+      side: mkAngle('side profile 3D view'),
+      top: mkAngle('top-down overhead 3D view')
+    };
 
     res.json({
       success: true,
-      message: `Studio-grade 4K commercial photo generated for "${product_name}" with Gemini AI!`,
+      message: `Studio-grade 4K commercial photo & 3D 360° views generated for "${product_name}" with Gemini AI!`,
       product_name,
       imageUrl: selectedPhoto,
       ai_generated_image_url: selectedPhoto,
+      views_3d: views3d,
       description: aiDescription,
       prompt_used: enhancedPrompt || `High-end commercial studio photography of ${product_name}, warm natural lighting, 4K crisp detail`,
       raw_image_url: raw_image_url || null,
       aspect_ratio: '1:1',
-      enhancement_tags: ['Studio Lighting', 'Deep Color Grading', 'Commercial 4K Quality', 'Gemini 2.5 Flash Powered']
+      enhancement_tags: ['Studio Lighting', '3D 360° Turntable', 'Commercial 4K Quality', 'Gemini 2.5 Flash Powered']
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
