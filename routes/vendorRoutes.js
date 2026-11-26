@@ -39,4 +39,11 @@ router.get('/subcategories', catalogController.getSubcategories);
 router.get('/earnings', vendorController.getEarnings);
 router.get('/reviews', vendorController.getReviews);
 
+// 8. Settings: CMS Pages, Notifications, Contact Us & Delete Account
+router.get('/cms', vendorController.getVendorCmsPages);
+router.get('/notifications', vendorController.getVendorNotifications);
+router.patch('/notifications/preferences', vendorController.updateNotificationPreferences);
+router.post('/contact', vendorController.submitContactUs);
+router.delete('/account', vendorController.deleteVendorAccount);
+
 module.exports = router;

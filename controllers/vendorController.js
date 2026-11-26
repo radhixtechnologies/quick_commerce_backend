@@ -956,6 +956,138 @@ async function verifyServiceOtp(req, res) {
   }
 }
 
+// 11. VENDOR SETTINGS: CMS Pages, Notifications, Contact Us, Delete Account
+async function getVendorCmsPages(req, res) {
+  try {
+    let pages = [];
+    if (db.isConnected()) {
+      pages = await db.query('SELECT slug, title, content, updated_at FROM cms_pages');
+    }
+    if (!pages || pages.length === 0) {
+      pages = [
+        {
+          slug: 'about-us',
+          title: 'About Xwayu Partner',
+          content: 'Xwayu is a next-generation quick commerce ecosystem connecting local restaurants, grocery stores, retail brands, and service professionals with customers in 10–30 minutes. Our Vendor Hub empowers partners with real-time order management, AI catalog studio, and transparent instant settlements.'
+        },
+        {
+          slug: 'privacy-policy',
+          title: 'Privacy Policy',
+          content: 'We respect your business privacy. Store KYC documents, bank settlement details, and customer order records are encrypted and used strictly for verification, order fulfillment, and regulatory compliance. We never sell partner data to third parties.'
+        },
+        {
+          slug: 'terms-conditions',
+          title: 'Terms & Conditions',
+          content: 'By operating a store on Xwayu, partners agree to maintain hygiene and quality standards, honor listed menu/catalog pricing, keep inventory availability updated, and prepare accepted orders within the committed SLA window. Platform commission applies per completed order.'
+        },
+        {
+          slug: 'refund-policy',
+          title: 'Refund & Cancellation Policy',
+          content: 'Orders cancelled before preparation starts incur zero penalty. In case of verified missing or damaged items, Xwayu processes instant customer refunds and settles valid partner claims during weekly/instant payout reconciliation.'
+        }
+      ];
+    }
+    res.json({ success: true, pages });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function getVendorNotifications(req, res) {
+  try {
+    const vendorId = req.user?.vendorId || req.query.vendor_id || 1;
+    let list = (db.memoryStore.notifications || []).filter((n) => !n.vendor_id || n.vendor_id == vendorId);
+    if (list.length === 0) {
+      list = [
+        {
+          id: 1,
+          title: 'Welcome to Xwayu Partner Hub',
+          body: 'Your store workspace is active. Keep your store OPEN to receive live orders!',
+          type: 'system',
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 2,
+          title: 'KYC & Settlement Ready',
+          body: 'Ensure all business documents are verified in Profile for uninterrupted payouts.',
+          type: 'kyc',
+          created_at: new Date().toISOString()
+        }
+      ];
+    }
+    res.json({ success: true, notifications: list });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function updateNotificationPreferences(req, res) {
+  try {
+    const vendorId = req.user?.vendorId || req.body.vendor_id || 1;
+    const prefs = req.body || {};
+    const v = (db.memoryStore.vendors || []).find((item) => item.id == vendorId);
+    if (v) v.notification_preferences = prefs;
+    res.json({ success: true, message: 'Notification preferences saved', preferences: prefs });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function submitContactUs(req, res) {
+  try {
+    const vendorId = req.user?.vendorId || req.body.vendor_id || null;
+    const { subject, message, email, phone } = req.body;
+    if (!subject || !message) {
+      return res.status(400).json({ success: false, message: 'Subject and message are required' });
+    }
+    if (!db.memoryStore.supportTickets) db.memoryStore.supportTickets = [];
+    const ticket = {
+      id: `TKT-${Date.now().toString().slice(-6)}`,
+      vendor_id: vendorId,
+      subject,
+      message,
+      email: email || '',
+      phone: phone || '',
+      status: 'open',
+      created_at: new Date().toISOString()
+    };
+    db.memoryStore.supportTickets.push(ticket);
+    res.status(201).json({
+      success: true,
+      message: `Support ticket ${ticket.id} submitted! Our partner team will contact you shortly.`,
+      ticket
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function deleteVendorAccount(req, res) {
+  try {
+    const vendorId = req.user?.vendorId || req.query.vendor_id || req.body?.vendor_id;
+    const userId = req.user?.userId || req.user?.id;
+
+    if (db.isConnected()) {
+      if (vendorId) await db.query('DELETE FROM vendors WHERE id = ?', [vendorId]);
+      if (userId) await db.query('DELETE FROM users WHERE id = ?', [userId]);
+    } else {
+      if (vendorId && db.memoryStore.vendors) {
+        db.memoryStore.vendors = db.memoryStore.vendors.filter((v) => v.id != vendorId);
+      }
+      if (vendorId && db.memoryStore.products) {
+        db.memoryStore.products = db.memoryStore.products.filter((p) => p.vendor_id != vendorId);
+      }
+      if (userId && db.memoryStore.users) {
+        db.memoryStore.users = db.memoryStore.users.filter((u) => u.id != userId);
+      }
+    }
+
+    res.json({ success: true, message: 'Your vendor account and store data have been permanently deleted.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -974,5 +1106,10 @@ module.exports = {
   updateProduct,
   deleteProduct,
   getEarnings,
-  getReviews
+  getReviews,
+  getVendorCmsPages,
+  getVendorNotifications,
+  updateNotificationPreferences,
+  submitContactUs,
+  deleteVendorAccount
 };
