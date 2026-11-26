@@ -761,6 +761,7 @@ async function createProduct(req, res) {
       raw_image_url,
       ai_generated_image_url,
       ai_generated_video_url,
+      images = [],
       variations = [],
       addons = []
     } = req.body;
@@ -768,6 +769,9 @@ async function createProduct(req, res) {
     if (!name || !price) {
       return res.status(400).json({ success: false, message: 'Product name and price are required' });
     }
+
+    const galleryImages = Array.isArray(images) ? images.filter(Boolean) : [];
+    const primaryImg = ai_generated_image_url || raw_image_url || galleryImages[0] || '';
 
     const newProd = {
       id: (db.memoryStore.products || []).length + 1,
@@ -781,10 +785,11 @@ async function createProduct(req, res) {
       stock: parseInt(stock),
       unit,
       food_type,
-      image_url: ai_generated_image_url || raw_image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80',
-      raw_image_url: raw_image_url || null,
+      image_url: primaryImg,
+      raw_image_url: raw_image_url || galleryImages[0] || null,
       ai_generated_image_url: ai_generated_image_url || null,
       ai_generated_video_url: ai_generated_video_url || null,
+      images: galleryImages,
       variations,
       addons,
       is_available: 1,
