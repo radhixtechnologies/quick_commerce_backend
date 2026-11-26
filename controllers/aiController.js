@@ -1,5 +1,9 @@
 const https = require('https');
 const db = require('../config/db');
+const { fetchImageBuffer, buildProductGlb } = require('../utils/glbGenerator');
+
+// Cache for base64 / generated images so /api/v1/ai/model-3d?id=... can embed them into .glb
+const modelImageCache = new Map();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
@@ -321,7 +325,22 @@ async function generateProductImage(req, res) {
       top: angles[3] || angles[1] || selectedPhoto
     };
 
-    const model3dUrl = resolve3dModelUrl(product_name, category);
+    // Build dynamic .glb 3D model URL mapped to this exact product image
+    const hostProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const hostName = req.get('host') || 'quick-commerce-backend-a3f7.onrender.com';
+    const baseUrl = `${hostProto}://${hostName}`;
+    let model3dUrl;
+    if (selectedPhoto.startsWith('data:image')) {
+      const cacheId = `m3d_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+      modelImageCache.set(cacheId, selectedPhoto);
+      if (modelImageCache.size > 100) {
+        const firstKey = modelImageCache.keys().next().value;
+        modelImageCache.delete(firstKey);
+      }
+      model3dUrl = `${baseUrl}/api/v1/ai/model-3d?id=${cacheId}`;
+    } else {
+      model3dUrl = `${baseUrl}/api/v1/ai/model-3d?image=${encodeURIComponent(selectedPhoto)}`;
+    }
 
     res.json({
       success: true,
@@ -337,8 +356,25 @@ async function generateProductImage(req, res) {
       prompt_used: enhancedPrompt || `High-end commercial studio photography of ${product_name}, warm natural lighting, 4K crisp detail`,
       raw_image_url: raw_image_url || null,
       aspect_ratio: '1:1',
-      enhancement_tags: ['Studio Lighting', '3D 360° Turntable', 'Commercial 4K Quality', resolved.source]
+      enhancement_tags: ['Studio Lighting', '3D .glb Model', 'Commercial 4K Quality', resolved.source]
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+// 2b. DYNAMIC 3D (.glb) MODEL ENDPOINT: Generates a real glTF 2.0 Binary 3D model from the exact product image
+async function getDynamicProduct3dModel(req, res) {
+  try {
+    const { image, id } = req.query;
+    const targetImage = (id && modelImageCache.get(id)) || image || '';
+    const fetched = await fetchImageBuffer(targetImage);
+    const glbBuffer = buildProductGlb(fetched?.buffer || null, fetched?.mimeType || 'image/jpeg');
+
+    res.setHeader('Content-Type', 'model/gltf-binary');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(glbBuffer);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -352,22 +388,24 @@ async function generateProductVideo(req, res) {
     const category = req.body.category || 'food';
     const duration_sec = req.body.duration_sec || req.body.duration || 10;
 
-    // Public streamable 4K commercial motion showcase videos
-    const streamableVideos = [
-      'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
-      'https://media.w3.org/2010/05/sintel/trailer.mp4'
-    ];
-    const videoUrl = streamableVideos[Math.floor(Math.random() * streamableVideos.length)];
+    // Resolve actual product HD photos for a genuine product-matched cinematic showcase reel
+    const resolved = await resolveDishImages(product_name, category);
+    const reelImages = [
+      ...(image_url && image_url.startsWith('http') ? [image_url] : []),
+      ...resolved.angles
+    ].filter((v, i, arr) => v && arr.indexOf(v) === i).slice(0, 4);
 
     res.json({
       success: true,
-      message: `Promotional 4K showcase video generated for "${product_name}" with Gemini AI!`,
+      message: `Promotional 4K showcase video reel generated for "${product_name}"!`,
       product_name,
-      videoUrl: videoUrl,
-      video_url: videoUrl,
+      video_type: 'ai_cinematic_reel',
+      videoUrl: reelImages[0] || resolved.primary,
+      video_url: reelImages[0] || resolved.primary,
+      reel_images: reelImages,
       duration_seconds: duration_sec,
-      thumbnail_url: image_url || (await resolveDishImage(product_name, category)),
-      motion_style: 'Cinematic Slow Motion 360 Spin + Dynamic Light Reflections',
+      thumbnail_url: image_url || resolved.primary,
+      motion_style: 'Cinematic Ken-Burns Pan & Zoom + 3D Studio Showcase',
       status: 'ready'
     });
   } catch (err) {
@@ -475,6 +513,7 @@ Give a friendly, concise, bulleted answer to the vendor's question.`;
 module.exports = {
   generateProductDescription,
   generateProductImage,
+  getDynamicProduct3dModel,
   generateProductVideo,
   aiSmartSearch,
   partnerWorkflowChat
