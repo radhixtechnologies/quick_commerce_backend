@@ -600,8 +600,12 @@
           </div>
         </div>
         <div style="margin-bottom:12px;">
-          <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Product Image URL</label>
-          <input type="text" id="newProdImage" value="https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" />
+          <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Dish / Product Photo (Upload or URL)</label>
+          <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
+            <img id="newProdImagePreview" src="https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80" style="width:52px; height:52px; border-radius:8px; object-fit:cover; border:1px solid var(--border-color);" />
+            <input type="file" id="newProdImageFile" accept="image/*" onchange="handleNewProdImageUpload(this)" style="font-size:12px; flex:1;" />
+          </div>
+          <input type="text" id="newProdImage" value="https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80" placeholder="Or paste image URL..." style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;" />
         </div>
       </div>
       <div class="modal-footer">

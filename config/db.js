@@ -145,6 +145,7 @@ async function initDB() {
     isConnected = true;
     console.log('✅ Connected to MySQL Database [quick_commerce_db] successfully.');
     conn.release();
+    await ensureLongTextImageColumns();
 
     if (reconnectTimer) {
       clearInterval(reconnectTimer);
@@ -171,6 +172,24 @@ async function initDB() {
           // Still waiting for MySQL to start
         }
       }, 5000);
+    }
+  }
+}
+
+// Ensure image/media URL columns can store persistent data URLs (base64) without truncation
+async function ensureLongTextImageColumns() {
+  if (!pool) return;
+  const alters = [
+    'ALTER TABLE vendors MODIFY COLUMN logo_url LONGTEXT DEFAULT NULL, MODIFY COLUMN cover_image_url LONGTEXT DEFAULT NULL',
+    'ALTER TABLE products MODIFY COLUMN image_url LONGTEXT DEFAULT NULL, MODIFY COLUMN raw_image_url LONGTEXT DEFAULT NULL, MODIFY COLUMN ai_generated_image_url LONGTEXT DEFAULT NULL',
+    'ALTER TABLE categories MODIFY COLUMN image_url LONGTEXT DEFAULT NULL',
+    'ALTER TABLE banners MODIFY COLUMN image_url LONGTEXT NOT NULL'
+  ];
+  for (const sql of alters) {
+    try {
+      await pool.query(sql);
+    } catch (_) {
+      // Ignore if column already altered or table absent
     }
   }
 }

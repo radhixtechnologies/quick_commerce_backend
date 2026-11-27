@@ -485,22 +485,56 @@ function updateHeaderVendorInfo(v) {
 let pendingVendorLogoBase64 = '';
 let pendingVendorCoverBase64 = '';
 
-function handleVendorMediaUpload(input, kind) {
+function compressImageFileToDataUrl(file, maxDim = 900, quality = 0.78) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const rawDataUrl = ev.target?.result || '';
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+          else { w = Math.round((w * maxDim) / h); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(rawDataUrl);
+      img.src = rawDataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleVendorMediaUpload(input, kind) {
   const file = input?.files?.[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const dataUrl = ev.target?.result || '';
-    if (kind === 'logo') {
-      pendingVendorLogoBase64 = dataUrl;
-      const prev = document.getElementById('profLogoPreview');
-      if (prev) prev.src = dataUrl;
-    } else {
-      pendingVendorCoverBase64 = dataUrl;
-    }
-    showToastNotification(`✅ ${kind === 'logo' ? 'Store Logo' : 'Cover Photo'} selected — click Save Changes!`);
-  };
-  reader.readAsDataURL(file);
+  const dataUrl = await compressImageFileToDataUrl(file, 900, 0.78);
+  if (kind === 'logo') {
+    pendingVendorLogoBase64 = dataUrl;
+    const prev = document.getElementById('profLogoPreview');
+    if (prev) prev.src = dataUrl;
+  } else {
+    pendingVendorCoverBase64 = dataUrl;
+  }
+  showToastNotification(`✅ ${kind === 'logo' ? 'Store Logo' : 'Cover Photo'} selected — click Save Changes!`);
+}
+
+async function handleNewProdImageUpload(input) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  const dataUrl = await compressImageFileToDataUrl(file, 800, 0.78);
+  const urlInput = document.getElementById('newProdImage');
+  const prev = document.getElementById('newProdImagePreview');
+  if (urlInput) urlInput.value = dataUrl;
+  if (prev) prev.src = dataUrl;
+  showToastNotification('✅ Dish photo ready — click Save to Backend Catalog!');
 }
 
 async function saveVendorProfileToBackend() {
@@ -515,7 +549,7 @@ async function saveVendorProfileToBackend() {
     };
     const res = await fetch(`${API_BASE}/vendor/profile`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(payload)
     });
     const data = await res.json();

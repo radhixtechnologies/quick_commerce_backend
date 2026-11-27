@@ -722,9 +722,16 @@ function renderVendorsView(container) {
               return `
                 <tr>
                   <td>
-                    <div>
-                      <b style="color:var(--text-dark); font-size:14px;">${v.business_name}</b>
-                      <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">${v.phone} &bull; ${v.city || 'Noida'}</div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      ${v.logo_url ? `
+                        <img src="${v.logo_url.startsWith('/uploads') ? backendBase + v.logo_url : v.logo_url}" onerror="this.style.display='none'" style="width:38px; height:38px; border-radius:8px; object-fit:cover; border:1px solid #E2E8F0; flex-shrink:0;" />
+                      ` : `
+                        <div style="width:38px; height:38px; border-radius:8px; background:#FFF7ED; border:1px solid #FED7AA; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">🏪</div>
+                      `}
+                      <div>
+                        <b style="color:var(--text-dark); font-size:14px;">${v.business_name}</b>
+                        <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">${v.phone} &bull; ${v.city || 'Noida'}</div>
+                      </div>
                     </div>
                   </td>
                   <td>${getModuleBadge(cat)}</td>
@@ -911,6 +918,31 @@ function inspectVendorKyc(vendorId) {
           🏦 <b>Bank Details:</b> Pending partner submission during settlement onboarding.
         </div>
       `}
+    </div>
+
+    <!-- STORE LOGO & COVER PHOTO PREVIEW -->
+    <div style="margin-bottom: 16px; background: #fff; border: 1px solid var(--border-color); border-radius: 12px; padding: 14px;">
+      <h4 style="margin: 0 0 10px; font-size: 14px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 6px;">
+        <span>🖼️</span> Restaurant / Store Logo & Cover Photo
+      </h4>
+      <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center;">
+        <div style="text-align:center;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Store Logo</div>
+          ${vendor.logo_url ? `
+            <img src="${vendor.logo_url.startsWith('/uploads') ? backendBase + vendor.logo_url : vendor.logo_url}" onclick="openDocPreviewLightbox('Store Logo', '${vendor.logo_url.startsWith('/uploads') ? backendBase + vendor.logo_url : vendor.logo_url}', 'logo_url', ${vendor.id})" style="width:76px; height:76px; border-radius:12px; object-fit:cover; border:1px solid #CBD5E1; cursor:pointer;" />
+          ` : `
+            <div style="width:76px; height:76px; border-radius:12px; border:1px dashed #CBD5E1; background:#F8FAFC; display:flex; align-items:center; justify-content:center; font-size:11px; color:#94A3B8;">No Logo</div>
+          `}
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Cover Banner</div>
+          ${vendor.cover_image_url ? `
+            <img src="${vendor.cover_image_url.startsWith('/uploads') ? backendBase + vendor.cover_image_url : vendor.cover_image_url}" onclick="openDocPreviewLightbox('Store Cover Banner', '${vendor.cover_image_url.startsWith('/uploads') ? backendBase + vendor.cover_image_url : vendor.cover_image_url}', 'cover_image_url', ${vendor.id})" style="width:100%; max-width:260px; height:76px; border-radius:10px; object-fit:cover; border:1px solid #CBD5E1; cursor:pointer;" />
+          ` : `
+            <div style="width:100%; max-width:260px; height:76px; border-radius:10px; border:1px dashed #CBD5E1; background:#F8FAFC; display:flex; align-items:center; justify-content:center; font-size:11px; color:#94A3B8;">No Cover Banner Uploaded</div>
+          `}
+        </div>
+      </div>
     </div>
 
     <!-- 2. KYC DOCUMENTS VERIFICATION LIST -->
@@ -1602,7 +1634,7 @@ async function renderProducts(container) {
             ${products.length ? products.map(p => {
               const hasAiImg = !!p.ai_generated_image_url;
               const hasAiVid = !!p.ai_generated_video_url;
-              const displayImg = p.ai_generated_image_url || p.image_url || 'https://placehold.co/100x100/F8FAFC/64748B?text=Product';
+              const displayImg = p.ai_generated_image_url || p.image_url || p.raw_image_url || 'https://placehold.co/100x100/F8FAFC/64748B?text=Product';
 
               return `
                 <tr>

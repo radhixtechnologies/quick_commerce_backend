@@ -10,28 +10,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'quick_commerce_super_secret_jwt_ke
 function processDocumentsPayload(docs) {
   if (!docs || typeof docs !== 'object') return {};
   const processed = { ...docs };
-  const uploadsDir = path.join(__dirname, '..', 'uploads');
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-
+  // Keep data:image/* and data:application/pdf base64 payloads directly so they persist
+  // across ephemeral cloud container restarts (e.g. Render) in MySQL LONGTEXT/JSON columns.
   for (const [key, val] of Object.entries(processed)) {
-    if (typeof val === 'string' && (val.startsWith('data:image') || val.startsWith('data:application/pdf'))) {
-      try {
-        const matches = val.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/s);
-        let ext = '.jpg';
-        if (matches && matches[1]) {
-          if (matches[1].includes('png')) ext = '.png';
-          else if (matches[1].includes('pdf')) ext = '.pdf';
-        }
-        const b64 = matches ? matches[2] : val.replace(/^data:[^;]+;base64,/, '');
-        const buffer = Buffer.from(b64, 'base64');
-        const filename = `kyc-${Date.now()}-${key}${ext}`;
-        fs.writeFileSync(path.join(uploadsDir, filename), buffer);
-        processed[key] = `/uploads/${filename}`;
-      } catch (e) {
-        console.error('Error saving base64 doc:', e);
-      }
+    if (typeof val === 'string') {
+      processed[key] = val.trim();
     }
   }
   return processed;
@@ -559,9 +542,9 @@ async function getProfile(req, res) {
 async function updateProfile(req, res) {
   try {
     const vendorId = req.user?.vendorId || req.body.vendor_id || 1;
-    let { business_name, description, logo_url, cover_image_url, opening_time, closing_time, service_radius_km, is_open } = req.body;
+    let { business_name, description, address, logo_url, cover_image_url, opening_time, closing_time, service_radius_km, is_open, documents } = req.body;
 
-    // Convert base64 logo/cover uploads to real saved disk URLs
+    // Normalize media payloads (preserves persistent data URLs or http URLs)
     const mediaMap = {};
     if (logo_url) mediaMap.logo = logo_url;
     if (cover_image_url) mediaMap.cover = cover_image_url;
@@ -571,11 +554,14 @@ async function updateProfile(req, res) {
       if (processed.cover) cover_image_url = processed.cover;
     }
 
+    const processedDocs = documents && typeof documents === 'object' ? processDocumentsPayload(documents) : null;
+
     if (db.isConnected()) {
       await db.query(
         `UPDATE vendors SET
           business_name = COALESCE(?, business_name),
           description = COALESCE(?, description),
+          address = COALESCE(?, address),
           logo_url = COALESCE(?, logo_url),
           cover_image_url = COALESCE(?, cover_image_url),
           opening_time = COALESCE(?, opening_time),
@@ -583,25 +569,50 @@ async function updateProfile(req, res) {
           service_radius_km = COALESCE(?, service_radius_km),
           is_open = COALESCE(?, is_open)
         WHERE id = ?`,
-        [business_name || null, description || null, logo_url || null, cover_image_url || null, opening_time || null, closing_time || null, service_radius_km || null, is_open !== undefined ? (is_open ? 1 : 0) : null, vendorId]
+        [business_name || null, description || null, address || null, logo_url || null, cover_image_url || null, opening_time || null, closing_time || null, service_radius_km || null, is_open !== undefined ? (is_open ? 1 : 0) : null, vendorId]
       );
+
+      if (processedDocs && Object.keys(processedDocs).length > 0) {
+        const rows = await db.query('SELECT documents_json, document_verification_json FROM vendors WHERE id = ?', [vendorId]);
+        let existingDocs = rows[0]?.documents_json || {};
+        let existingVerif = rows[0]?.document_verification_json || {};
+        if (typeof existingDocs === 'string') { try { existingDocs = JSON.parse(existingDocs); } catch (_) { existingDocs = {}; } }
+        if (typeof existingVerif === 'string') { try { existingVerif = JSON.parse(existingVerif); } catch (_) { existingVerif = {}; } }
+        const mergedDocs = { ...existingDocs, ...processedDocs };
+        for (const k of Object.keys(processedDocs)) {
+          if (processedDocs[k]) existingVerif[k] = 'pending';
+        }
+        await db.query(
+          'UPDATE vendors SET documents_json = ?, document_verification_json = ? WHERE id = ?',
+          [JSON.stringify(mergedDocs), JSON.stringify(existingVerif), vendorId]
+        );
+      }
     } else {
       const v = db.memoryStore.vendors.find((item) => item.id == vendorId);
       if (v) {
         if (business_name) v.business_name = business_name;
         if (description) v.description = description;
+        if (address) v.address = address;
         if (logo_url) v.logo_url = logo_url;
         if (cover_image_url) v.cover_image_url = cover_image_url;
         if (is_open !== undefined) v.is_open = is_open ? 1 : 0;
+        if (processedDocs && Object.keys(processedDocs).length > 0) {
+          v.documents_json = { ...(v.documents_json || {}), ...processedDocs };
+          v.document_verification_json = v.document_verification_json || {};
+          for (const k of Object.keys(processedDocs)) {
+            if (processedDocs[k]) v.document_verification_json[k] = 'pending';
+          }
+        }
       }
     }
 
     const io = req.app.get('io');
     if (io) {
       io.emit('vendor_profile_updated', { vendorId, business_name, logo_url, cover_image_url });
+      io.to('admin_room').emit('vendor_profile_updated', { vendorId, business_name, logo_url, cover_image_url });
     }
 
-    res.json({ success: true, message: 'Vendor profile updated successfully', logo_url, cover_image_url });
+    res.json({ success: true, message: 'Vendor profile updated successfully', logo_url, cover_image_url, documents: processedDocs || undefined });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -890,7 +901,24 @@ async function getCustomerOrders(req, res) {
 async function getProducts(req, res) {
   try {
     const vendorId = req.user?.vendorId || req.query.vendor_id || 1;
-    const products = (db.memoryStore.products || []).filter((p) => p.vendor_id == vendorId);
+    let products = [];
+    if (db.isConnected()) {
+      const rows = await db.query('SELECT * FROM products WHERE vendor_id = ? ORDER BY id DESC', [vendorId]);
+      products = rows.map((p) => {
+        const parseJson = (val) => {
+          if (typeof val === 'string') { try { return JSON.parse(val); } catch (_) { return []; } }
+          return Array.isArray(val) ? val : [];
+        };
+        return {
+          ...p,
+          images: parseJson(p.images_json),
+          variations: parseJson(p.variations_json),
+          addons: parseJson(p.addons_json)
+        };
+      });
+    } else {
+      products = (db.memoryStore.products || []).filter((p) => p.vendor_id == vendorId);
+    }
     res.json({ success: true, count: products.length, products });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -910,6 +938,7 @@ async function createProduct(req, res) {
       stock = 50,
       unit = 'piece',
       food_type = 'veg',
+      image_url,
       raw_image_url,
       ai_generated_image_url,
       ai_generated_video_url,
@@ -924,9 +953,10 @@ async function createProduct(req, res) {
     }
 
     const galleryImages = Array.isArray(images) ? images.filter(Boolean) : [];
-    const primaryImg = ai_generated_image_url || raw_image_url || galleryImages[0] || '';
+    const primaryImg = ai_generated_image_url || image_url || raw_image_url || galleryImages[0] || '';
+    const resolvedRawImg = raw_image_url || image_url || galleryImages[0] || null;
 
-    const newProd = {
+    let newProd = {
       id: (db.memoryStore.products || []).length + 1,
       vendor_id: parseInt(vendorId),
       category_id: parseInt(category_id) || 1,
@@ -939,7 +969,7 @@ async function createProduct(req, res) {
       unit,
       food_type,
       image_url: primaryImg,
-      raw_image_url: raw_image_url || galleryImages[0] || null,
+      raw_image_url: resolvedRawImg,
       ai_generated_image_url: ai_generated_image_url || null,
       ai_generated_video_url: ai_generated_video_url || null,
       model_3d_url: model_3d_url || null,
@@ -953,8 +983,33 @@ async function createProduct(req, res) {
       total_reviews: 0
     };
 
-    if (!db.memoryStore.products) db.memoryStore.products = [];
-    db.memoryStore.products.push(newProd);
+    if (db.isConnected()) {
+      const slug = `${String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${Date.now()}`;
+      const result = await db.query(
+        `INSERT INTO products (
+          vendor_id, category_id, subcategory_id, name, slug, description,
+          price, discount_price, stock, unit, food_type,
+          image_url, raw_image_url, ai_generated_image_url, ai_generated_video_url, model_3d_url,
+          images_json, variations_json, addons_json,
+          is_available, is_featured, approval_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 'approved')`,
+        [
+          newProd.vendor_id, newProd.category_id, newProd.subcategory_id, name, slug, newProd.description,
+          newProd.price, newProd.discount_price, newProd.stock, unit, food_type,
+          primaryImg, resolvedRawImg, newProd.ai_generated_image_url, newProd.ai_generated_video_url, newProd.model_3d_url,
+          JSON.stringify(galleryImages), JSON.stringify(variations), JSON.stringify(addons)
+        ]
+      );
+      newProd.id = result.insertId;
+    } else {
+      if (!db.memoryStore.products) db.memoryStore.products = [];
+      db.memoryStore.products.push(newProd);
+    }
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('catalog_updated', { vendor_id: newProd.vendor_id, product: newProd });
+    }
 
     res.status(201).json({ success: true, message: 'Product added successfully', product: newProd });
   } catch (err) {
@@ -965,10 +1020,60 @@ async function createProduct(req, res) {
 async function updateProduct(req, res) {
   try {
     const { id } = req.params;
+    const {
+      name, category_id, subcategory_id, description, price, discount_price,
+      stock, unit, food_type, image_url, raw_image_url, ai_generated_image_url,
+      ai_generated_video_url, model_3d_url, images, variations, addons, is_available
+    } = req.body;
+
+    const galleryImages = Array.isArray(images) ? images.filter(Boolean) : undefined;
+    const primaryImg = ai_generated_image_url || image_url || raw_image_url || (galleryImages && galleryImages[0]) || undefined;
+
+    if (db.isConnected()) {
+      await db.query(
+        `UPDATE products SET
+          name = COALESCE(?, name),
+          category_id = COALESCE(?, category_id),
+          subcategory_id = COALESCE(?, subcategory_id),
+          description = COALESCE(?, description),
+          price = COALESCE(?, price),
+          discount_price = COALESCE(?, discount_price),
+          stock = COALESCE(?, stock),
+          unit = COALESCE(?, unit),
+          food_type = COALESCE(?, food_type),
+          image_url = COALESCE(?, image_url),
+          raw_image_url = COALESCE(?, raw_image_url),
+          ai_generated_image_url = COALESCE(?, ai_generated_image_url),
+          ai_generated_video_url = COALESCE(?, ai_generated_video_url),
+          model_3d_url = COALESCE(?, model_3d_url),
+          images_json = COALESCE(?, images_json),
+          variations_json = COALESCE(?, variations_json),
+          addons_json = COALESCE(?, addons_json),
+          is_available = COALESCE(?, is_available)
+        WHERE id = ?`,
+        [
+          name || null, category_id || null, subcategory_id || null, description !== undefined ? description : null,
+          price !== undefined ? parseFloat(price) : null, discount_price !== undefined ? (discount_price ? parseFloat(discount_price) : null) : null,
+          stock !== undefined ? parseInt(stock) : null, unit || null, food_type || null,
+          primaryImg || null, raw_image_url || null, ai_generated_image_url || null,
+          ai_generated_video_url || null, model_3d_url || null,
+          galleryImages ? JSON.stringify(galleryImages) : null,
+          Array.isArray(variations) ? JSON.stringify(variations) : null,
+          Array.isArray(addons) ? JSON.stringify(addons) : null,
+          is_available !== undefined ? (is_available ? 1 : 0) : null,
+          id
+        ]
+      );
+      const rows = await db.query('SELECT * FROM products WHERE id = ?', [id]);
+      if (rows.length === 0) return res.status(404).json({ success: false, message: 'Product not found' });
+      return res.json({ success: true, message: 'Product updated successfully', product: rows[0] });
+    }
+
     const prod = (db.memoryStore.products || []).find((p) => p.id == id);
     if (!prod) return res.status(404).json({ success: false, message: 'Product not found' });
 
     Object.assign(prod, req.body);
+    if (primaryImg) prod.image_url = primaryImg;
     res.json({ success: true, message: 'Product updated successfully', product: prod });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -978,7 +1083,11 @@ async function updateProduct(req, res) {
 async function deleteProduct(req, res) {
   try {
     const { id } = req.params;
-    db.memoryStore.products = (db.memoryStore.products || []).filter((p) => p.id != id);
+    if (db.isConnected()) {
+      await db.query('DELETE FROM products WHERE id = ?', [id]);
+    } else {
+      db.memoryStore.products = (db.memoryStore.products || []).filter((p) => p.id != id);
+    }
     res.json({ success: true, message: 'Product deleted successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
