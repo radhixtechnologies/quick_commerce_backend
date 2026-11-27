@@ -471,6 +471,73 @@ function updateHeaderVendorInfo(v) {
   const cat = (v.vendor_category || v.business_type || 'FOOD').toUpperCase();
   if (vertical) vertical.innerText = cat;
   if (badge) badge.innerText = cat;
+
+  const pName = document.getElementById('profBusinessName');
+  const pPhone = document.getElementById('profPhone');
+  const pAddr = document.getElementById('profAddress');
+  const pLogo = document.getElementById('profLogoPreview');
+  if (pName && v.business_name) pName.value = v.business_name;
+  if (pPhone && v.phone) pPhone.value = v.phone;
+  if (pAddr && v.address) pAddr.value = v.address;
+  if (pLogo && (v.logo_url || v.logo)) pLogo.src = v.logo_url || v.logo;
+}
+
+let pendingVendorLogoBase64 = '';
+let pendingVendorCoverBase64 = '';
+
+function handleVendorMediaUpload(input, kind) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const dataUrl = ev.target?.result || '';
+    if (kind === 'logo') {
+      pendingVendorLogoBase64 = dataUrl;
+      const prev = document.getElementById('profLogoPreview');
+      if (prev) prev.src = dataUrl;
+    } else {
+      pendingVendorCoverBase64 = dataUrl;
+    }
+    showToastNotification(`✅ ${kind === 'logo' ? 'Store Logo' : 'Cover Photo'} selected — click Save Changes!`);
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveVendorProfileToBackend() {
+  const btn = document.getElementById('btnSaveVendorProfile');
+  if (btn) { btn.disabled = true; btn.innerText = 'Saving...'; }
+  try {
+    const payload = {
+      vendor_id: currentVendorId,
+      business_name: document.getElementById('profBusinessName')?.value.trim(),
+      logo_url: pendingVendorLogoBase64 || undefined,
+      cover_image_url: pendingVendorCoverBase64 || undefined
+    };
+    const res = await fetch(`${API_BASE}/vendor/profile`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      if (currentVendor) {
+        if (payload.business_name) currentVendor.business_name = payload.business_name;
+        if (data.logo_url) currentVendor.logo_url = data.logo_url;
+        if (data.cover_image_url) currentVendor.cover_image_url = data.cover_image_url;
+        localStorage.setItem('vendor_profile', JSON.stringify(currentVendor));
+        updateHeaderVendorInfo(currentVendor);
+      }
+      pendingVendorLogoBase64 = '';
+      pendingVendorCoverBase64 = '';
+      showToastNotification('✅ Profile & Store Logo saved! Live on Customer App.');
+    } else {
+      alert(data.message || 'Could not save profile');
+    }
+  } catch (err) {
+    alert(`Save error: ${err.message}`);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerText = 'Save Changes'; }
+  }
 }
 
 function logoutVendor(confirmPrompt = true) {

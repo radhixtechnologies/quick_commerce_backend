@@ -2,7 +2,7 @@ const db = require('../config/db');
 
 async function getCategories(req, res) {
   try {
-    let { module_type } = req.query;
+    let module_type = req.query.module_type || req.query.category;
     if (module_type === 'service_based') module_type = 'services';
     let categories = [];
 
@@ -163,8 +163,8 @@ async function getVendorsList(req, res) {
         );
         let docs = {};
         try { docs = typeof v.documents_json === 'string' ? JSON.parse(v.documents_json) : (v.documents_json || {}); } catch (_) {}
-        v.logo = docs.logo || docs.store_front || (prods[0]?.image_url || '');
-        v.cover_image = docs.store_front || (prods[0]?.image_url || docs.logo || '');
+        v.logo = v.logo_url || docs.logo || docs.store_front || (prods[0]?.image_url || '');
+        v.cover_image = v.cover_image_url || docs.store_front || (prods[0]?.image_url || v.logo || '');
         v.must_try_name = prods[0]?.name || 'Chef Special';
         v.must_try_price = prods[0]?.price || 99;
         v.eta = '20-30';

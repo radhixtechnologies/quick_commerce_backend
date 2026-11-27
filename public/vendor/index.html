@@ -452,11 +452,22 @@
       <div class="tab-pane" id="tab-profile" style="display:none;">
         <div class="panel-card">
           <div class="panel-header">
-            <div class="panel-title">Business Profile & Operating Hours</div>
-            <button class="btn btn-primary btn-sm" onclick="alert('Profile details saved successfully!')">Save Changes</button>
+            <div class="panel-title">Business Profile &amp; Store Logo</div>
+            <button class="btn btn-primary btn-sm" id="btnSaveVendorProfile" onclick="saveVendorProfileToBackend()">Save Changes</button>
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
             <div>
+              <div style="display:flex; gap:14px; align-items:center; margin-bottom:16px; background:#FFFBF7; padding:12px; border-radius:12px; border:1px solid var(--border-color);">
+                <img id="profLogoPreview" src="/assets/logo.png?v=2" alt="Store Logo" style="width:64px; height:64px; border-radius:14px; object-fit:cover; border:2px solid var(--primary-orange); background:#fff;" />
+                <div style="flex:1;">
+                  <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Restaurant / Store Logo *</label>
+                  <input type="file" id="profLogoFile" accept="image/*" onchange="handleVendorMediaUpload(this, 'logo')" style="font-size:12px;" />
+                </div>
+              </div>
+              <div style="margin-bottom:14px;">
+                <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Store Cover Banner Photo</label>
+                <input type="file" id="profCoverFile" accept="image/*" onchange="handleVendorMediaUpload(this, 'cover')" style="font-size:12px;" />
+              </div>
               <div style="margin-bottom:14px;">
                 <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Business / Store Name</label>
                 <input type="text" id="profBusinessName" value="Spice Hub Restaurant" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px;" />

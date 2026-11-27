@@ -559,7 +559,17 @@ async function getProfile(req, res) {
 async function updateProfile(req, res) {
   try {
     const vendorId = req.user?.vendorId || req.body.vendor_id || 1;
-    const { business_name, description, logo_url, cover_image_url, opening_time, closing_time, service_radius_km, is_open } = req.body;
+    let { business_name, description, logo_url, cover_image_url, opening_time, closing_time, service_radius_km, is_open } = req.body;
+
+    // Convert base64 logo/cover uploads to real saved disk URLs
+    const mediaMap = {};
+    if (logo_url) mediaMap.logo = logo_url;
+    if (cover_image_url) mediaMap.cover = cover_image_url;
+    if (Object.keys(mediaMap).length > 0) {
+      const processed = processDocumentsPayload(mediaMap);
+      if (processed.logo) logo_url = processed.logo;
+      if (processed.cover) cover_image_url = processed.cover;
+    }
 
     if (db.isConnected()) {
       await db.query(
@@ -573,7 +583,7 @@ async function updateProfile(req, res) {
           service_radius_km = COALESCE(?, service_radius_km),
           is_open = COALESCE(?, is_open)
         WHERE id = ?`,
-        [business_name, description, logo_url, cover_image_url, opening_time, closing_time, service_radius_km, is_open !== undefined ? (is_open ? 1 : 0) : null, vendorId]
+        [business_name || null, description || null, logo_url || null, cover_image_url || null, opening_time || null, closing_time || null, service_radius_km || null, is_open !== undefined ? (is_open ? 1 : 0) : null, vendorId]
       );
     } else {
       const v = db.memoryStore.vendors.find((item) => item.id == vendorId);
@@ -586,7 +596,12 @@ async function updateProfile(req, res) {
       }
     }
 
-    res.json({ success: true, message: 'Vendor profile updated successfully' });
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('vendor_profile_updated', { vendorId, business_name, logo_url, cover_image_url });
+    }
+
+    res.json({ success: true, message: 'Vendor profile updated successfully', logo_url, cover_image_url });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
