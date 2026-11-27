@@ -803,7 +803,9 @@ async function fetchOrdersFromBackend() {
         code: o.order_code || `#ORD${o.id}`,
         customer: o.customer_name || o.customer || 'Customer',
         phone: o.customer_phone || '+91 98765 00000',
-        items: `${o.items_count || (o.items ? o.items.length : 2)} items`,
+        items: `${o.items_count || (o.items ? o.items.length : 1)} items`,
+        rawItems: Array.isArray(o.items) ? o.items : [],
+        address: o.delivery_address_text || o.delivery_address || 'Current Location',
         amount: o.amount || o.total_amount || 498,
         status: o.order_status || o.status || 'placed',
         date: o.created_at ? new Date(o.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Today',
@@ -880,19 +882,66 @@ function renderAllOrders(filterStatus) {
 }
 
 function renderOrderActionButtons(order) {
+  let actionHtml = '';
   if (order.status === 'placed') {
-    return `
-      <div style="display:flex; gap:6px;">
-        <button class="btn btn-sm" style="background:var(--success-green); color:white;" onclick="updateOrderStatusInBackend(${order.id}, 'preparing')">Accept</button>
-        <button class="btn btn-sm" style="background:var(--danger-red); color:white;" onclick="openRejectModal(${order.id})">Reject</button>
-      </div>
+    actionHtml = `
+      <button class="btn btn-sm" style="background:var(--success-green); color:white;" onclick="updateOrderStatusInBackend(${order.id}, 'preparing')">Accept</button>
+      <button class="btn btn-sm" style="background:var(--danger-red); color:white;" onclick="openRejectModal(${order.id})">Reject</button>
     `;
   } else if (order.status === 'preparing') {
-    return `<button class="btn btn-sky btn-sm" onclick="updateOrderStatusInBackend(${order.id}, 'ready_for_pickup')">Mark Ready</button>`;
+    actionHtml = `<button class="btn btn-sky btn-sm" onclick="updateOrderStatusInBackend(${order.id}, 'ready_for_pickup')">Mark Ready</button>`;
   } else if (order.status === 'ready_for_pickup') {
-    return `<button class="btn btn-primary btn-sm" onclick="updateOrderStatusInBackend(${order.id}, 'delivered')">Handover Done</button>`;
+    actionHtml = `<button class="btn btn-primary btn-sm" onclick="updateOrderStatusInBackend(${order.id}, 'delivered')">Handover Done</button>`;
+  } else {
+    actionHtml = `<small style="color:var(--text-light); font-weight:600;">${order.status === 'cancelled' ? 'Rejected' : 'Completed'}</small>`;
   }
-  return `<small style="color:var(--text-light); font-weight:600;">Completed</small>`;
+  return `
+    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+      ${actionHtml}
+      <button class="btn btn-sm" style="background:#F3F4F6; color:#181A20; border:1px solid #E5E7EB;" onclick="openVendorOrderDetailModal(${order.id})">Details</button>
+    </div>
+  `;
+}
+
+function openVendorOrderDetailModal(orderId) {
+  const o = ordersList.find((x) => String(x.id) === String(orderId));
+  if (!o) return;
+  let existing = document.getElementById('vendorOrderDetailModal');
+  if (!existing) {
+    existing = document.createElement('div');
+    existing.id = 'vendorOrderDetailModal';
+    existing.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center; z-index:9999; padding:16px;';
+    document.body.appendChild(existing);
+  }
+  const rawItems = Array.isArray(o.rawItems) ? o.rawItems : [];
+  const itemsHtml = rawItems.length
+    ? rawItems.map((it) => `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #F3F4F6;"><span>${it.product_name || it.name} × ${it.quantity || 1}</span><strong>₹${it.subtotal || it.price || 0}</strong></div>`).join('')
+    : `<div style="padding:6px 0;">${o.items}</div>`;
+
+  existing.innerHTML = `
+    <div style="background:#fff; border-radius:18px; max-width:460px; width:100%; padding:22px; box-shadow:0 20px 50px rgba(0,0,0,0.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="margin:0; font-size:18px;">Order ${o.code} Details</h3>
+        <button onclick="document.getElementById('vendorOrderDetailModal').style.display='none'" style="border:none; background:#F3F4F6; border-radius:50%; width:30px; height:30px; cursor:pointer; font-weight:800;">✕</button>
+      </div>
+      <div style="font-size:13px; color:#4B5563; line-height:1.7; margin-bottom:12px;">
+        <div><strong>Customer:</strong> ${o.customer} (${o.phone || 'N/A'})</div>
+        <div><strong>Address:</strong> ${o.address || 'Current Location'}</div>
+        <div><strong>Status:</strong> <span class="badge-status badge-${o.status}">${o.status.replace(/_/g, ' ')}</span></div>
+        <div><strong>Payment:</strong> ${o.payment} &nbsp;|&nbsp; <strong>Delivery OTP:</strong> <code>${o.otp || 'N/A'}</code></div>
+        ${o.reason ? `<div style="color:#DC2626;"><strong>Rejection Reason:</strong> ${o.reason}</div>` : ''}
+      </div>
+      <div style="background:#FFFBF7; border:1px solid #FDE68A; border-radius:12px; padding:12px; font-size:13px; margin-bottom:14px;">
+        <div style="font-weight:800; margin-bottom:6px;">Order Items</div>
+        ${itemsHtml}
+        <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:15px;"><strong>Total Amount</strong><strong style="color:#FF6B00;">₹${o.amount}</strong></div>
+      </div>
+      <div style="text-align:right;">
+        <button onclick="document.getElementById('vendorOrderDetailModal').style.display='none'" class="btn btn-primary btn-sm">Close</button>
+      </div>
+    </div>
+  `;
+  existing.style.display = 'flex';
 }
 
 async function updateOrderStatusInBackend(orderId, newStatus, reason = null) {

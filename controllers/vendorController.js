@@ -685,14 +685,25 @@ async function getOrders(req, res) {
 
     let orders = [];
     if (db.isConnected()) {
-      let sql = 'SELECT * FROM orders WHERE vendor_id = ?';
+      let sql = `
+        SELECT o.*, COALESCE(u.name, 'Customer') AS customer_name, COALESCE(u.phone, '') AS customer_phone
+        FROM orders o
+        LEFT JOIN users u ON o.user_id = u.id
+        WHERE o.vendor_id = ?
+      `;
       const params = [vendorId];
       if (status && status !== 'all') {
-        sql += ' AND order_status = ?';
+        sql += ' AND o.order_status = ?';
         params.push(status);
       }
-      sql += ' ORDER BY id DESC';
+      sql += ' ORDER BY o.id DESC';
       orders = await db.query(sql, params);
+
+      for (const ord of orders) {
+        const items = await db.query('SELECT * FROM order_items WHERE order_id = ?', [ord.id]);
+        ord.items = items;
+        ord.items_count = items.reduce((sum, it) => sum + (parseInt(it.quantity) || 1), 0);
+      }
     } else {
       orders = db.memoryStore.orders.filter((o) => {
         if (o.vendor_id != vendorId) return false;
@@ -745,41 +756,68 @@ async function updateOrderStatus(req, res) {
 
 async function createOrder(req, res) {
   try {
-    const vendorId = req.user?.vendorId || req.body.vendor_id || 1;
-    const { customer_name, customer_phone, total_amount, payment_method, items } = req.body;
+    const vendorId = parseInt(req.user?.vendorId || req.body.vendor_id || 1);
+    const { customer_name, customer_phone, delivery_address, total_amount, payment_method, items = [] } = req.body;
 
-    const newId = (db.memoryStore.orders || []).length + 1;
-    const orderCode = `#ORD${1000 + newId}`;
-    const amount = parseFloat(total_amount) || 498;
+    const orderCode = `#ORD${Math.floor(100000 + Math.random() * 900000)}`;
+    const amount = parseFloat(total_amount) || 99;
+    const payMethod = String(payment_method || 'UPI').toUpperCase().includes('CASH') ? 'COD' : 'UPI';
+    const payStatus = payMethod === 'COD' ? 'pending' : 'paid';
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
-    const newOrder = {
-      id: newId,
+    let newOrder = {
+      id: Date.now(),
       order_code: orderCode,
-      vendor_id: parseInt(vendorId),
+      vendor_id: vendorId,
       user_id: 1,
-      customer_name: customer_name || 'Customer',
-      customer_phone: customer_phone || '+91 99999 00000',
+      customer_name: customer_name || 'Guest Customer',
+      customer_phone: customer_phone || '',
+      delivery_address: delivery_address || 'Current Location',
       total_amount: amount,
       amount,
-      items_count: items && items.length ? items.length : 2,
-      items: items || [],
+      items_count: Array.isArray(items) && items.length ? items.length : 1,
+      items: Array.isArray(items) ? items : [],
       delivery_charge: 25.0,
-      packaging_charge: 15.0,
+      packaging_charge: 0.0,
       tax_amount: Math.round(amount * 0.05),
-      payment_method: (payment_method || 'UPI').toUpperCase(),
-      payment_status: payment_method === 'COD' ? 'pending' : 'paid',
+      payment_method: payMethod,
+      payment_status: payStatus,
       order_status: 'placed',
-      delivery_otp: Math.floor(1000 + Math.random() * 9000).toString(),
+      delivery_otp: otp,
       distance_km: 2.4,
       created_at: new Date().toISOString()
     };
 
     if (db.isConnected()) {
-      await db.query(
-        `INSERT INTO orders (order_code, vendor_id, user_id, total_amount, payment_method, payment_status, order_status, delivery_otp)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [orderCode, vendorId, 1, amount, newOrder.payment_method, newOrder.payment_status, 'placed', newOrder.delivery_otp]
+      let userId = 1;
+      if (customer_phone) {
+        const cleanDigits = String(customer_phone).replace(/\D/g, '').slice(-10);
+        const foundUsers = await db.query(
+          "SELECT id FROM users WHERE phone = ? OR RIGHT(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), 10) = ? LIMIT 1",
+          [customer_phone, cleanDigits]
+        );
+        if (foundUsers.length > 0) {
+          userId = foundUsers[0].id;
+        }
+      }
+
+      const ins = await db.query(
+        `INSERT INTO orders (order_code, vendor_id, user_id, delivery_address_text, total_amount, payment_method, payment_status, order_status, delivery_otp)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [orderCode, vendorId, userId, newOrder.delivery_address, amount, payMethod, payStatus, 'placed', otp]
       );
+      newOrder.id = ins.insertId;
+      newOrder.user_id = userId;
+
+      for (const it of newOrder.items) {
+        const qty = parseInt(it.quantity || it.qty || 1);
+        const price = parseFloat(it.price || 0);
+        await db.query(
+          `INSERT INTO order_items (order_id, product_id, product_name, quantity, price, subtotal)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [ins.insertId, parseInt(it.product_id || 1) || null, it.name || 'Item', qty, price, qty * price]
+        );
+      }
     } else {
       if (!db.memoryStore.orders) db.memoryStore.orders = [];
       db.memoryStore.orders.unshift(newOrder);
@@ -793,6 +831,41 @@ async function createOrder(req, res) {
     }
 
     res.status(201).json({ success: true, message: 'Order created successfully', order: newOrder });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function getCustomerOrders(req, res) {
+  try {
+    const { phone, user_id } = req.query;
+    let orders = [];
+    if (db.isConnected()) {
+      let sql = `
+        SELECT o.*, COALESCE(v.business_name, 'Xwayu Partner') AS vendor_name
+        FROM orders o
+        LEFT JOIN vendors v ON o.vendor_id = v.id
+        LEFT JOIN users u ON o.user_id = u.id
+        WHERE 1=1
+      `;
+      const params = [];
+      if (user_id) {
+        sql += ' AND o.user_id = ?';
+        params.push(user_id);
+      } else if (phone) {
+        const last10 = String(phone).replace(/\D/g, '').slice(-10);
+        sql += " AND (u.phone = ? OR RIGHT(REPLACE(REPLACE(REPLACE(u.phone, ' ', ''), '-', ''), '+', ''), 10) = ?)";
+        params.push(phone, last10);
+      }
+      sql += ' ORDER BY o.id DESC LIMIT 40';
+      orders = await db.query(sql, params);
+      for (const ord of orders) {
+        ord.items = await db.query('SELECT * FROM order_items WHERE order_id = ?', [ord.id]);
+      }
+    } else {
+      orders = (db.memoryStore.orders || []).filter((o) => !phone || String(o.customer_phone || '').includes(phone));
+    }
+    res.json({ success: true, count: orders.length, orders });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -1186,6 +1259,7 @@ module.exports = {
   toggleStoreStatus,
   getDashboardStats,
   getOrders,
+  getCustomerOrders,
   createOrder,
   updateOrderStatus,
   verifyServiceOtp,
