@@ -119,7 +119,8 @@ async function getProducts(req, res) {
 
 async function getBanners(req, res) {
   try {
-    const { type } = req.query;
+    const { type, category, module_type } = req.query;
+    const mod = module_type || category;
     let banners = [];
     if (db.isConnected()) {
       let sql = 'SELECT * FROM banners WHERE is_active = 1';
@@ -128,10 +129,19 @@ async function getBanners(req, res) {
         sql += ' AND banner_type = ?';
         params.push(type);
       }
-      sql += ' ORDER BY sort_order ASC';
+      if (mod && mod !== 'all') {
+        sql += " AND (module_type = 'all' OR module_type = ? OR module_type IS NULL)";
+        params.push(mod);
+      }
+      sql += ' ORDER BY id DESC, sort_order ASC';
       banners = await db.query(sql, params);
     } else {
-      banners = db.memoryStore.banners.filter((b) => !type || b.banner_type === type);
+      banners = (db.memoryStore.banners || []).filter((b) => {
+        if (b.is_active === 0 || b.is_active === false) return false;
+        if (type && b.banner_type !== type) return false;
+        if (mod && mod !== 'all' && b.module_type && b.module_type !== 'all' && b.module_type !== mod) return false;
+        return true;
+      });
     }
 
     res.json({ success: true, count: banners.length, banners });

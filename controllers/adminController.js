@@ -874,10 +874,13 @@ async function createBanner(req, res) {
         'INSERT INTO banners (title, subtitle, image_url, module_type, banner_type, is_active, sort_order) VALUES (?, ?, ?, ?, ?, ?, 0)',
         [title, subtitle, image_url, normModule, banner_type, is_active ? 1 : 0]
       );
+      const createdBanner = { id: result.insertId, title, subtitle, image_url, module_type: normModule, banner_type, is_active: is_active ? 1 : 0 };
+      const io = req.app.get('io');
+      if (io) io.emit('banner_updated', createdBanner);
       return res.status(201).json({
         success: true,
         message: 'Banner created successfully!',
-        banner: { id: result.insertId, title, subtitle, image_url, module_type: normModule, banner_type, is_active: 1 }
+        banner: createdBanner
       });
     }
 
