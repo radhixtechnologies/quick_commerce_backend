@@ -55,16 +55,17 @@ async function getSubcategories(req, res) {
 
 async function getProducts(req, res) {
   try {
-    const { category_id, vendor_id, module_type, search, is_featured, food_type } = req.query;
+    const { category_id, vendor_id, module_type, category, search, is_featured, food_type } = req.query;
+    const vertical = category || module_type;
     let products = [];
 
     if (db.isConnected()) {
       let sql = `
-        SELECT p.*, v.business_name AS vendor_name, v.rating AS vendor_rating, c.name AS category_name
+        SELECT p.*, v.business_name AS vendor_name, v.vendor_category AS vendor_category, v.rating AS vendor_rating, c.name AS category_name
         FROM products p
         JOIN vendors v ON p.vendor_id = v.id
-        JOIN categories c ON p.category_id = c.id
-        WHERE p.is_available = 1 AND p.approval_status = 'approved'
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.is_available = 1
       `;
       const params = [];
 
@@ -76,9 +77,9 @@ async function getProducts(req, res) {
         sql += ' AND p.vendor_id = ?';
         params.push(vendor_id);
       }
-      if (module_type) {
-        sql += ' AND c.module_type = ?';
-        params.push(module_type);
+      if (vertical) {
+        sql += ' AND (v.vendor_category = ? OR v.business_type = ? OR c.module_type = ?)';
+        params.push(vertical, vertical, vertical);
       }
       if (food_type) {
         sql += ' AND p.food_type = ?';
@@ -103,6 +104,12 @@ async function getProducts(req, res) {
         return true;
       });
     }
+
+    products = products.map((p) => ({
+      ...p,
+      image: p.image_url || p.image || '',
+      is_veg: p.food_type ? p.food_type === 'veg' : true
+    }));
 
     res.json({ success: true, count: products.length, products });
   } catch (err) {
@@ -135,18 +142,35 @@ async function getBanners(req, res) {
 
 async function getVendorsList(req, res) {
   try {
-    const { business_type } = req.query;
+    const { business_type, category } = req.query;
+    const vertical = category || business_type;
     let vendors = [];
     if (db.isConnected()) {
-      let sql = "SELECT * FROM vendors WHERE approval_status = 'approved'";
+      let sql = "SELECT * FROM vendors WHERE approval_status IN ('approved', 'pending')";
       const params = [];
-      if (business_type) {
-        sql += ' AND business_type = ?';
-        params.push(business_type);
+      if (vertical) {
+        sql += ' AND (vendor_category = ? OR business_type = ?)';
+        params.push(vertical, vertical);
       }
+      sql += ' ORDER BY id DESC';
       vendors = await db.query(sql, params);
+
+      // Attach each vendor's first product as Must Try & cover image fallback
+      for (const v of vendors) {
+        const prods = await db.query(
+          'SELECT name, price, image_url FROM products WHERE vendor_id = ? AND is_available = 1 ORDER BY is_featured DESC, id DESC LIMIT 1',
+          [v.id]
+        );
+        let docs = {};
+        try { docs = typeof v.documents_json === 'string' ? JSON.parse(v.documents_json) : (v.documents_json || {}); } catch (_) {}
+        v.logo = docs.logo || docs.store_front || (prods[0]?.image_url || '');
+        v.cover_image = docs.store_front || (prods[0]?.image_url || docs.logo || '');
+        v.must_try_name = prods[0]?.name || 'Chef Special';
+        v.must_try_price = prods[0]?.price || 99;
+        v.eta = '20-30';
+      }
     } else {
-      vendors = db.memoryStore.vendors.filter((v) => !business_type || v.business_type === business_type);
+      vendors = db.memoryStore.vendors.filter((v) => !vertical || v.vendor_category === vertical || v.business_type === vertical);
     }
 
     res.json({ success: true, count: vendors.length, vendors });
