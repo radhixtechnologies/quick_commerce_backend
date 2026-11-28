@@ -1173,8 +1173,20 @@ async function deleteProductFromBackend(productId) {
 }
 
 // Add Product Modal
-function openAddProductModal() {
+async function openAddProductModal() {
   document.getElementById('addProductModal').classList.add('active');
+  const sel = document.getElementById('newProdCategory');
+  if (sel) {
+    try {
+      const mod = currentVendor?.vendor_category || currentVendor?.business_type || 'food';
+      const res = await fetch(`${API_BASE}/catalog/categories?module_type=${encodeURIComponent(mod)}`);
+      const data = await res.json();
+      const cats = data.categories || [];
+      if (cats.length > 0) {
+        sel.innerHTML = cats.map((c) => `<option value="${c.id}">${c.icon_url || ''} ${c.name}</option>`).join('');
+      }
+    } catch (_) {}
+  }
 }
 
 function closeAddProductModal() {
@@ -1182,6 +1194,7 @@ function closeAddProductModal() {
 }
 
 async function submitNewProductToBackend() {
+  const categoryId = parseInt(document.getElementById('newProdCategory')?.value) || 1;
   const name = document.getElementById('newProdName').value.trim();
   const desc = document.getElementById('newProdDesc').value.trim();
   const price = document.getElementById('newProdPrice').value.trim();
@@ -1201,7 +1214,7 @@ async function submitNewProductToBackend() {
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({
         vendor_id: currentVendorId,
-        category_id: 1,
+        category_id: categoryId,
         name,
         description: desc,
         price: parseFloat(price),

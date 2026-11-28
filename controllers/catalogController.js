@@ -78,8 +78,12 @@ async function getProducts(req, res) {
         params.push(vendor_id);
       }
       if (vertical) {
-        sql += ' AND (v.vendor_category = ? OR v.business_type = ? OR c.module_type = ?)';
-        params.push(vertical, vertical, vertical);
+        if (vertical === 'grocery' || vertical === 'daily_needs') {
+          sql += " AND (v.vendor_category IN ('grocery', 'daily_needs') OR v.business_type IN ('grocery', 'daily_needs') OR c.module_type IN ('grocery', 'daily_needs'))";
+        } else {
+          sql += ' AND (v.vendor_category = ? OR v.business_type = ? OR c.module_type = ?)';
+          params.push(vertical, vertical, vertical);
+        }
       }
       if (food_type) {
         sql += ' AND p.food_type = ?';
@@ -159,8 +163,12 @@ async function getVendorsList(req, res) {
       let sql = "SELECT * FROM vendors WHERE approval_status IN ('approved', 'pending')";
       const params = [];
       if (vertical) {
-        sql += ' AND (vendor_category = ? OR business_type = ?)';
-        params.push(vertical, vertical);
+        if (vertical === 'grocery' || vertical === 'daily_needs') {
+          sql += " AND (vendor_category IN ('grocery', 'daily_needs') OR business_type IN ('grocery', 'daily_needs'))";
+        } else {
+          sql += ' AND (vendor_category = ? OR business_type = ?)';
+          params.push(vertical, vertical);
+        }
       }
       sql += ' ORDER BY id DESC';
       vendors = await db.query(sql, params);

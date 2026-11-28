@@ -886,7 +886,10 @@ async function getCustomerOrders(req, res) {
       sql += ' ORDER BY o.id DESC LIMIT 40';
       orders = await db.query(sql, params);
       for (const ord of orders) {
-        ord.items = await db.query('SELECT * FROM order_items WHERE order_id = ?', [ord.id]);
+        ord.items = await db.query(
+          "SELECT oi.*, COALESCE(p.image_url, '') AS image_url FROM order_items oi LEFT JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?",
+          [ord.id]
+        );
       }
     } else {
       orders = (db.memoryStore.orders || []).filter((o) => !phone || String(o.customer_phone || '').includes(phone));
