@@ -76,4 +76,7 @@ router.put('/cms/:slug', adminController.updateCMSPage);
 router.get('/settings', adminController.getSettings);
 router.put('/settings', adminController.updateSettings);
 
+// 4.18 Live Database Inspector
+router.get('/db-inspector', adminController.getDatabaseInspector);
+
 module.exports = router;

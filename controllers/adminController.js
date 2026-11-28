@@ -1010,6 +1010,67 @@ async function updateSettings(req, res) {
   }
 }
 
+async function getDatabaseInspector(req, res) {
+  try {
+    const sanitizeUser = (u) => {
+      if (!u || typeof u !== 'object') return u;
+      const copy = { ...u };
+      delete copy.password_hash;
+      return copy;
+    };
+
+    let tables = {};
+    if (db.isConnected()) {
+      const [users, vendors, products, categories, orders, banners, delivery_boys] = await Promise.all([
+        db.query('SELECT id, name, email, phone, role, status, created_at FROM users ORDER BY id DESC LIMIT 100'),
+        db.query('SELECT id, user_id, business_name, vendor_category, phone, email, city, is_open, approval_status, created_at FROM vendors ORDER BY id DESC LIMIT 100'),
+        db.query('SELECT id, vendor_id, category_id, name, price, discount_price, stock, unit, food_type, is_available, approval_status FROM products ORDER BY id DESC LIMIT 100'),
+        db.query('SELECT id, name, slug, module_type, is_active, sort_order FROM categories ORDER BY id ASC LIMIT 100'),
+        db.query('SELECT id, order_number, user_id, vendor_id, total_amount, payment_method, status, delivery_address, created_at FROM orders ORDER BY id DESC LIMIT 100'),
+        db.query('SELECT id, title, subtitle, module_type, banner_type, is_active FROM banners ORDER BY id DESC LIMIT 50'),
+        db.query('SELECT id, user_id, full_name, phone, vehicle_type, approval_status, is_online FROM delivery_boys ORDER BY id DESC LIMIT 100')
+      ]);
+      tables = { users, vendors, products, categories, orders, banners, delivery_boys };
+    } else {
+      tables = {
+        users: (db.memoryStore.users || []).map(sanitizeUser),
+        vendors: (db.memoryStore.vendors || []).map((v) => ({
+          id: v.id,
+          business_name: v.business_name,
+          vendor_category: v.vendor_category,
+          phone: v.phone,
+          approval_status: v.approval_status,
+          is_open: v.is_open
+        })),
+        products: (db.memoryStore.products || []).map((p) => ({
+          id: p.id,
+          vendor_id: p.vendor_id,
+          category_id: p.category_id,
+          name: p.name,
+          price: p.price,
+          unit: p.unit,
+          is_available: p.is_available
+        })),
+        categories: db.memoryStore.categories || [],
+        orders: db.memoryStore.orders || [],
+        banners: db.memoryStore.banners || [],
+        delivery_boys: db.memoryStore.delivery_boys || []
+      };
+    }
+
+    res.json({
+      success: true,
+      mysql_connected: db.isConnected(),
+      db_host: process.env.DB_HOST || 'localhost (not set - using memoryStore)',
+      db_name: process.env.DB_NAME || 'quick_commerce_db',
+      counts: Object.fromEntries(Object.entries(tables).map(([k, v]) => [k, v.length])),
+      tables
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
 module.exports = {
   getDashboardKPIs,
   getAllCustomers,
@@ -1045,5 +1106,6 @@ module.exports = {
   getCMSPages,
   updateCMSPage,
   getSettings,
-  updateSettings
+  updateSettings,
+  getDatabaseInspector
 };

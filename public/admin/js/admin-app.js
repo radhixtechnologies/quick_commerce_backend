@@ -264,6 +264,12 @@ function loadModule(moduleName) {
       renderReports(container);
       break;
 
+    case 'database':
+      titleElem.textContent = 'Live Database Inspector';
+      descElem.textContent = 'Inspect real-time database connection status and every saved record';
+      renderDatabaseInspector(container);
+      break;
+
     case 'reviews':
       titleElem.textContent = 'Reviews & Ratings Moderation';
       descElem.textContent = 'Customer feedback on food quality, grocery freshness & rider ratings';
@@ -2837,4 +2843,70 @@ function showToast(msg) {
   setTimeout(() => {
     toast.style.display = 'none';
   }, 3500);
+}
+
+let activeDbTab = 'users';
+let cachedDbData = null;
+
+async function renderDatabaseInspector(container) {
+  container.innerHTML = `<div class="card-panel" style="padding:28px; text-align:center;">Loading live database tables...</div>`;
+  try {
+    const res = await apiRequest('/admin/db-inspector');
+    cachedDbData = res;
+    const counts = res.counts || {};
+    const tables = res.tables || {};
+    const tableKeys = Object.keys(tables);
+    if (!tableKeys.includes(activeDbTab) && tableKeys.length > 0) activeDbTab = tableKeys[0];
+
+    const statusBadge = res.mysql_connected
+      ? `<span class="status-badge badge-active">● MySQL Connected (${res.db_host} / ${res.db_name})</span>`
+      : `<span class="status-badge badge-pending">⚠ In-Memory Store (Set DB_HOST on Render for permanent MySQL persistence across pushes)</span>`;
+
+    const rows = tables[activeDbTab] || [];
+    const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
+
+    container.innerHTML = `
+      <div class="card-panel">
+        <div class="panel-header" style="flex-wrap:wrap; gap:12px;">
+          <div>
+            <h3 style="margin:0;">Live Database Explorer</h3>
+            <div style="margin-top:6px;">${statusBadge}</div>
+          </div>
+          <button class="btn-primary" onclick="renderDatabaseInspector(document.getElementById('moduleContainer'))">🔄 Refresh DB</button>
+        </div>
+
+        <div class="filter-tabs-row" style="margin-bottom:16px;">
+          ${tableKeys.map(k => `
+            <button class="filter-tab ${activeDbTab === k ? 'active' : ''}" onclick="activeDbTab='${k}'; renderDatabaseInspector(document.getElementById('moduleContainer'))">
+              ${k.toUpperCase()} (${counts[k] ?? 0})
+            </button>
+          `).join('')}
+        </div>
+
+        <div class="custom-table-wrapper" style="max-height:520px; overflow:auto;">
+          ${rows.length === 0 ? `
+            <div style="padding:32px; text-align:center; color:var(--text-muted);">No records found in <b>${activeDbTab}</b> table yet.</div>
+          ` : `
+            <table class="custom-table">
+              <thead>
+                <tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr>
+              </thead>
+              <tbody>
+                ${rows.map(r => `
+                  <tr>${cols.map(c => {
+                    let val = r[c];
+                    if (val !== null && typeof val === 'object') val = JSON.stringify(val);
+                    const str = val === null || val === undefined ? '—' : String(val);
+                    return `<td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${str.replace(/"/g, '&quot;')}">${str.length > 60 ? str.slice(0, 60) + '…' : str}</td>`;
+                  }).join('')}</tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div class="card-panel" style="padding:24px; color:#DC2626;">Error loading database inspector: ${err.message}</div>`;
+  }
 }
